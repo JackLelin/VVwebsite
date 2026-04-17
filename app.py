@@ -1,10 +1,9 @@
-from dash import Dash, html, dcc, Input, Output
+from dash import Dash, html, dcc, Input, Output, Patch, no_update
 import plotly.express as px
 import numpy as np
 
 # --- 1. Generate an example 2D matrix using numpy ---
 np.random.seed(42)
-# Create a 50x50 matrix with some pattern (e.g., a 2D sine wave + noise)
 x = np.linspace(-5, 5, 50)
 y = np.linspace(-5, 5, 50)
 X, Y = np.meshgrid(x, y)
@@ -14,6 +13,18 @@ Z = np.sin(X**2 + Y**2) + np.random.normal(0, 0.1, (50, 50))
 app = Dash(__name__)
 
 # --- 3. Define the Layout ---
+# Create the initial cross-section figure so we have a base structure to update
+initial_y_index = 25
+initial_row = Z[initial_y_index, :]
+initial_fig = px.line(
+    x=np.arange(len(initial_row)), 
+    y=initial_row,
+    title=f"Horizontal Cross-Section at Y-index: {initial_y_index}",
+    labels={'x': 'X Index', 'y': 'Value'}
+)
+initial_fig.add_scatter(x=[25], y=[Z[initial_y_index, 25]], mode='markers', 
+                        marker=dict(color='red', size=12), name='Clicked Point')
+
 app.layout = html.Div([
     html.H1("2D Matrix as Image", style={'textAlign': 'center', 'fontFamily': 'sans-serif'}),
     html.P("Click anywhere on the image below to see a 1D cross-section of that row.", 
@@ -26,9 +37,18 @@ app.layout = html.Div([
             id='matrix-image',
             figure=px.imshow(
                 Z, 
-                labels=dict(x="X Index", y="Y Index", color="Value"),
-                title="Interactive 2D Numpy Array (imshow)",
-                color_continuous_scale="Viridis"
+                labels=dict(x="X-Axis Label", y="Y-Axis Label", color="Intensity"),
+                title="Large Interactive 2D Plot",
+                color_continuous_scale="Viridis",
+                height=750 # Make the plot larger
+            ).update_layout(
+                xaxis_title="X-Axis Label", 
+                yaxis_title="Y-Axis Label",
+                coloraxis_colorbar=dict(
+                    title="Color Bar", # Give the color bar a clear title
+                    thickness=20,
+                    len=0.75
+                )
             ),
             style={'width': '50%'}
         ),
@@ -36,23 +56,27 @@ app.layout = html.Div([
         # A secondary plot to show interactivity
         dcc.Graph(
             id='cross-section-plot',
+            figure=initial_fig,
             style={'width': '50%'}
         )
     ], style={'display': 'flex', 'flexDirection': 'row', 'width': '100%'})
 ])
 
 # --- 4. Define Interactivity ---
+# By using Patch, we only send the changed data to the browser instead of redrawing the plot
 @app.callback(
     Output('cross-section-plot', 'figure'),
-    Input('matrix-image', 'clickData')
+    Input('matrix-image', 'clickData'),
+    prevent_initial_call=True
 )
 def update_cross_section(clickData):
     if clickData is None:
-        return px.line(title="Awaiting Click... Select a point on the matrix above.")
+        return no_update
     
     # Extract the x and y indices of the clicked point
     click_x = clickData['points'][0]['x']
     click_y = clickData['points'][0]['y']
+    
     # Get the cross-section (the specific row) from the numpy matrix
     row_data = Z[click_y, :]
     
@@ -61,8 +85,7 @@ def update_cross_section(clickData):
         x=np.arange(len(row_data)), 
         y=row_data,
         title=f"Horizontal Cross-Section at Y-index: {click_y}",
-        labels={'x': 'X Index', 'y': 'Value'},
-        template="plotly_dark"
+        labels={'x': 'X Index', 'y': 'Value'}
     )
     
     # Add a red dot to show exactly where they clicked on that cross-section
