@@ -26,7 +26,7 @@ initial_fig = px.line(
     y=initial_row,
     title=f"Cross-Section of Original Plot at Y-index: {initial_y_index}",
     labels={'x': 'X Index', 'y': 'Value'}
-)
+).update_layout(margin=dict(l=40, r=40, t=50, b=40))
 initial_fig.add_scatter(x=[25], y=[Z_ref[initial_y_index, 25]], mode='markers', 
                         marker=dict(color='red', size=12), name='Clicked Point')
 
@@ -36,7 +36,7 @@ app.layout = html.Div([
            style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'color': 'gray'}),
     
     html.Div([
-        html.H3("Select Plots to Display:", style={'display': 'inline-block', 'marginRight': '20px', 'fontFamily': 'sans-serif'}),
+        html.Span("Select Plots to Display:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
         dcc.Checklist(
             id='plot-toggles',
             options=[
@@ -47,10 +47,35 @@ app.layout = html.Div([
             ],
             value=[0], # Start with just the original plot checked
             inline=True,
-            inputStyle={'cursor': 'pointer', 'marginRight': '5px', 'marginLeft': '15px'},
+            inputStyle={'cursor': 'pointer', 'marginRight': '5px', 'marginLeft': '10px'},
             labelStyle={'cursor': 'pointer', 'fontSize': '16px', 'fontFamily': 'sans-serif'}
         )
-    ], style={'textAlign': 'center', 'marginBottom': '20px', 'padding': '15px', 'backgroundColor': '#f9f9f9', 'borderRadius': '8px', 'width': 'max-content', 'margin': '0 auto 20px auto'}),
+    ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '8px 15px', 'backgroundColor': '#f9f9f9', 'borderRadius': '8px', 'width': 'max-content', 'margin': '0 auto 10px auto'}),
+    
+    html.Div([
+        html.Span("Plot Width:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
+        html.Div(
+            dcc.Slider(
+                id='plot-size-slider',
+                min=200, max=1000, step=50, value=500,
+                marks=None,
+                tooltip={"placement": "bottom", "always_visible": True},
+                updatemode='mouseup'
+            ),
+            style={'flex': '1', 'minWidth': '200px'}
+        ),
+        html.Span("Plot Height:", style={'fontWeight': 'bold', 'marginLeft': '30px', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
+        html.Div(
+            dcc.Slider(
+                id='plot-height-slider',
+                min=200, max=1000, step=50, value=600,
+                marks=None,
+                tooltip={"placement": "bottom", "always_visible": True},
+                updatemode='mouseup'
+            ),
+            style={'flex': '1', 'minWidth': '200px'}
+        )
+    ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '5px 15px', 'width': 'max-content', 'margin': '0 auto 20px auto'}),
     
     # Create a flex container to hold both the left panes and the right pane
     html.Div([
@@ -64,6 +89,7 @@ app.layout = html.Div([
                 'flexDirection': 'row', # Stack horizontally!
                 'overflowX': 'auto', # Allow horizontal scrolling if multiple plots are added
                 'overflowY': 'auto',
+                'maxHeight': '70vh', # Cap the maximum height of the left pane
                 'borderRight': '3px solid #666', # Visually looks like a separator
                 'paddingRight': '10px'
             }
@@ -86,9 +112,11 @@ app.layout = html.Div([
 # A. Generate the selected plots
 @app.callback(
     Output('left-plots-container', 'children'),
-    Input('plot-toggles', 'value')
+    Input('plot-toggles', 'value'),
+    Input('plot-size-slider', 'value'),
+    Input('plot-height-slider', 'value')
 )
-def update_plots(selected_values):
+def update_plots(selected_values, plot_size, plot_height):
     children = []
     
     # Sort so they appear in a consistent order (Original, +10, +20, +30)
@@ -105,43 +133,46 @@ def update_plots(selected_values):
             labels=dict(x="X-Axis Label", y="Y-Axis Label", color="Intensity"),
             title=plot_title,
             color_continuous_scale="Viridis",
-            height=600,
+            height=plot_height, # Driven by slider
             aspect="auto" 
         ).update_layout(
             xaxis_title="X-Axis Label", 
             yaxis_title="Y-Axis Label",
             coloraxis_colorbar=dict(
-                title="Color Bar",
+                title=" ",
                 thickness=15,
-                len=0.75
+                len=0.75,
+                x=1.00, # Move flush to the edge of the plot
+                xpad=5  # Remove colorbar padding
             ),
             # Unified hovermode goes well with crosshairs
-            hovermode="x unified"
+            hovermode="x unified",
+            margin=dict(l=10, r=10, t=35, b=10) # Minimum internal whitespace!
         )
         
         # ADD CROSSHAIRS!
         new_fig.update_xaxes(showspikes=True, spikemode="across", spikedash="solid", spikecolor="gray", spikethickness=1)
         new_fig.update_yaxes(showspikes=True, spikemode="across", spikedash="solid", spikecolor="gray", spikethickness=1)
 
-        # Wrap the new figure in a resizable div
+        # Wrap the new figure in a fixed-size div, no longer individually resizable
         new_plot_component = html.Div([
             dcc.Graph(
                 # Using Pattern-Matching IDs! The index is the offset value.
                 id={'type': 'matrix-image', 'index': offset},
                 figure=new_fig,
+                responsive=True, # This tells Plotly to instantly fill its container
                 style={
-                    'resize': 'both', 
-                    'overflow': 'hidden',
-                    'minWidth': '400px', # Give each plot a decent minimum width
-                    'minHeight': '300px',
-                    'maxWidth': '95%',  
-                    'maxHeight': '95%',
                     'width': '100%', 
-                    'border': '1px dashed #aaa',
-                    'marginRight': '20px' # Space between stacked plots
+                    'height': '100%'
                 }
             )
-        ], style={'minWidth': '500px', 'flexShrink': 0}) # flexShrink=0 ensures it doesn't get squished if too many plots are added
+        ], style={
+            'width': f'{plot_size}px', # Explicitly drive width from the wrapper
+            'height': f'{plot_height}px', # Drive height from the wrapper
+            'border': '1px dashed #aaa',
+            'marginRight': '5px',
+            'flexShrink': 0
+        })
         
         children.append(new_plot_component)
         
@@ -193,7 +224,7 @@ def update_cross_section(clickData_list):
         y=row_data,
         title=plot_title,
         labels={'x': 'X Index', 'y': 'Value'}
-    )
+    ).update_layout(margin=dict(l=40, r=40, t=50, b=40))
     
     fig.add_scatter(x=[click_x], y=[Z_clicked[click_y, click_x]], mode='markers', 
                     marker=dict(color='red', size=12), name='Clicked Point')
