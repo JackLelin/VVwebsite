@@ -134,8 +134,7 @@ def update_plots(selected_values, plot_size, plot_height):
             title=plot_title,
             color_continuous_scale="Viridis",
             height=plot_height, # Driven by slider
-            aspect="auto",
-            origin="lower" # Set origin to bottom-left corner
+            aspect="auto" 
         ).update_layout(
             xaxis_title="X-Axis Label", 
             yaxis_title="Y-Axis Label",
@@ -146,35 +145,14 @@ def update_plots(selected_values, plot_size, plot_height):
                 x=1.00, # Move flush to the edge of the plot
                 xpad=5  # Remove colorbar padding
             ),
-            # Use 'closest' instead of 'x unified' to strictly obey the hovertemplate
-            hovermode="closest",
+            # Unified hovermode goes well with crosshairs
+            hovermode="x unified",
             margin=dict(l=10, r=10, t=35, b=10) # Minimum internal whitespace!
         )
         
         # ADD CROSSHAIRS!
         new_fig.update_xaxes(showspikes=True, spikemode="across", spikedash="solid", spikecolor="gray", spikethickness=1)
         new_fig.update_yaxes(showspikes=True, spikemode="across", spikedash="solid", spikecolor="gray", spikethickness=1)
-
-        # CUSTOMIZE THE HOVER TOOLTIP!
-        new_fig.update_traces(
-            hovertemplate=(
-                "<b>X-Coordinate:</b> %{x}<br>"
-                "<b>Y-Coordinate:</b> %{y}<br>"
-                "<b>Intensity Value:</b> %{z:.2f}" 
-                "<extra></extra>" 
-            )
-        )
-
-       # ADD A LINE OR SCATTER PLOT ON TOP OF THE 2D HEATMAP!
-        new_fig.add_scatter(
-            x=[10, 20, 30, 40],        # Array of X coordinates
-            y=[10, 35, 15, 45],        # Array of Y coordinates
-            mode='lines+markers',      # Choose 'lines', 'markers', or 'lines+markers'
-            line=dict(color='white', width=2, dash='dash'), 
-            marker=dict(color='red', size=10, symbol='star'),
-            name='My Overlay',
-            hoverinfo='skip'           # Prevents the overlay from hijacking the crosshairs!
-        )
 
         # Wrap the new figure in a fixed-size div, no longer individually resizable
         new_plot_component = html.Div([
