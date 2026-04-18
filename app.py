@@ -32,33 +32,55 @@ app.layout = html.Div([
     
     # Create a flex container to hold both graphs side-by-side
     html.Div([
-        # Plot the 2D matrix as an image (heatmap)
-        dcc.Graph(
-            id='matrix-image',
-            figure=px.imshow(
-                Z, 
-                labels=dict(x="X-Axis Label", y="Y-Axis Label", color="Intensity"),
-                title="Large Interactive 2D Plot",
-                color_continuous_scale="Viridis",
-                height=750 # Make the plot larger
-            ).update_layout(
-                xaxis_title="X-Axis Label", 
-                yaxis_title="Y-Axis Label",
-                coloraxis_colorbar=dict(
-                    title="Color Bar", # Give the color bar a clear title
-                    thickness=20,
-                    len=0.75
-                )
-            ),
-            style={'width': '50%'}
-        ),
+        # Left Pane (Acts as the movable separator)
+        html.Div([
+            # Plot the 2D matrix as an image (heatmap)
+            dcc.Graph(
+                id='matrix-image',
+                figure=px.imshow(
+                    Z, 
+                    labels=dict(x="X-Axis Label", y="Y-Axis Label", color="Intensity"),
+                    title="Large Interactive 2D Plot",
+                    color_continuous_scale="Viridis",
+                    height=750, # Make the plot larger
+                    aspect="auto" # Stretch the plot to fill the container so the colorbar is flush
+                ).update_layout(
+                    xaxis_title="X-Axis Label", 
+                    yaxis_title="Y-Axis Label",
+                    coloraxis_colorbar=dict(
+                        title="Color Bar", # Give the color bar a clear title
+                        thickness=20,
+                        len=0.75
+                    )
+                ),
+                # This makes the plot itself resizable independently of the pane!
+                style={
+                    'resize': 'both', 
+                    'overflow': 'hidden',
+                    'minWidth': '300px',
+                    'minHeight': '300px',
+                    'maxWidth': '95%',  # Constrain maximum width to 95% of the pane
+                    'maxHeight': '95%', # Constrain maximum height to 95% of the pane
+                    'width': '100%', # Default to filling the pane
+                    'border': '1px dashed #aaa' # Visual indicator that it can be resized
+                }
+            )
+        ], style={
+            'width': '66.6%', 
+            # Separator is now fixed!
+            'overflow': 'auto', # If the plot is resized larger than the pane, this allows scrolling
+            'borderRight': '3px solid #666', # Visually looks like a separator
+            'paddingRight': '10px'
+        }),
         
-        # A secondary plot to show interactivity
-        dcc.Graph(
-            id='cross-section-plot',
-            figure=initial_fig,
-            style={'width': '50%'}
-        )
+        # Right Pane (A secondary plot to show interactivity)
+        html.Div([
+            dcc.Graph(
+                id='cross-section-plot',
+                figure=initial_fig,
+                style={'width': '100%', 'height': '100%'}
+            )
+        ], style={'flex': '1', 'minWidth': '10%', 'paddingLeft': '10px'})
     ], style={'display': 'flex', 'flexDirection': 'row', 'width': '100%'})
 ])
 
