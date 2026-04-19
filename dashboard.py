@@ -1,5 +1,6 @@
 from dash import Dash, html, dcc, Input, Output, State, Patch, no_update, ALL, callback_context
 import plotly.express as px
+import urllib.parse
 import numpy as np
 
 # --- 1. Helper function to generate dummy 2D data ---
@@ -14,8 +15,7 @@ def generate_matrix(seed):
 # Global reference matrix for the base plot
 Z_ref = generate_matrix(42)
 
-# --- 2. Initialize the Dash App ---
-app = Dash(__name__)
+from app_instance import app
 
 # --- 3. Define the Layout ---
 # Initial default cross-section plot
@@ -33,7 +33,7 @@ initial_fig = px.line(
 initial_fig.add_scatter(x=[25], y=[Z_ref[initial_y_index, 25]], mode='markers', 
                         marker=dict(color='red', size=12), name='Clicked Point')
 
-app.layout = html.Div([
+layout = html.Div([
     html.H1("Dynamic 2D Matrix Dashboard", style={'textAlign': 'center', 'fontFamily': 'sans-serif'}),
     html.P("Toggle plots using the checkboxes. Click anywhere on any image below to see its 1D cross-section on the right.", 
            style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'color': 'gray'}),
@@ -268,6 +268,19 @@ def update_cross_section(clickData_list):
     
     return fig
 
+# C. Read URL to get the target image from the Gallery
+@app.callback(
+    Output('url', 'pathname'), # Dummy output
+    Input('url', 'search'),
+    prevent_initial_call=False
+)
+def handle_gallery_redirect(search_query):
+    if search_query:
+        parsed = urllib.parse.parse_qs(search_query.lstrip('?'))
+        if 'image' in parsed:
+            filename = parsed['image'][0]
+            print(f"\n{'='*60}\nSUCCESS! Received filename from gallery: {filename}\n{'='*60}\n")
+    return no_update
+
 # --- 5. Run the Server ---
-if __name__ == '__main__':
-    app.run(debug=True, port=8050)
+# Server execution moved to main.py

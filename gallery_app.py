@@ -1,10 +1,8 @@
 import os
 import glob
-from dash import Dash, html, dcc, Input, Output, State
+from dash import html, dcc, Input, Output, State
 
-# suppress_callback_exceptions=True is required because the modal and buttons
-# are generated dynamically by the serve_layout function!
-app = Dash(__name__, suppress_callback_exceptions=True)
+from app_instance import app
 
 # By setting app.layout to a function, Dash will re-evaluate it every time the page is refreshed!
 def serve_layout():
@@ -40,9 +38,15 @@ def serve_layout():
         
         # Create a card for each image
         card = html.Div([
-            dcc.Markdown(
-                f'<img src="{app.get_asset_url(filename)}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
-                dangerously_allow_html=True
+            html.A(
+                href=f"/dashboard?image={filename}", # Link to the detailed plot page
+                target="_blank", # Open in a new tab
+                children=[
+                    dcc.Markdown(
+                        f'<img src="{app.get_asset_url(filename)}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
+                        dangerously_allow_html=True
+                    )
+                ]
             ),
             html.P(filename, style={
                 'textAlign': 'center', 
@@ -134,9 +138,6 @@ def serve_layout():
         })
     ], style={'backgroundColor': '#f8f9fa', 'minHeight': '100vh', 'margin': '-8px'}) # -8px margin removes default body margin
 
-# Assign the function to app.layout
-app.layout = serve_layout
-
 # CALLBACK: Toggle the Modal Window Open and Closed
 @app.callback(
     Output("caption-modal", "style"),
@@ -151,7 +152,3 @@ def toggle_modal(open_clicks, close_clicks, current_style):
     else:
         current_style['display'] = 'none' # Hide it
     return current_style
-
-if __name__ == '__main__':
-    # Using port 8051 so you can leave your original app running on 8050!
-    app.run(debug=True, port=8051)
