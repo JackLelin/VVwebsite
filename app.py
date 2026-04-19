@@ -26,7 +26,10 @@ initial_fig = px.line(
     y=initial_row,
     title=f"Cross-Section of Original Plot at Y-index: {initial_y_index}",
     labels={'x': 'X Index', 'y': 'Value'}
-).update_layout(margin=dict(l=40, r=40, t=50, b=40))
+).update_layout(
+    margin=dict(l=40, r=40, t=50, b=40),
+    legend=dict(yanchor="top", y=0.95, xanchor="right", x=0.99) # Move legend inside plot
+)
 initial_fig.add_scatter(x=[25], y=[Z_ref[initial_y_index, 25]], mode='markers', 
                         marker=dict(color='red', size=12), name='Clicked Point')
 
@@ -246,8 +249,20 @@ def update_cross_section(clickData_list):
         y=row_data,
         title=plot_title,
         labels={'x': 'X Index', 'y': 'Value'}
-    ).update_layout(margin=dict(l=40, r=40, t=50, b=40))
-    
+    ).update_layout(
+        margin=dict(l=40, r=40, t=50, b=40),
+        legend=dict(yanchor="top", y=0.95, xanchor="right", x=0.99) # Move legend inside plot
+    )
+    # Add a shaded region under the curve between X=10 and X=20
+    fig.add_vrect(
+        x0=10,                      # Start of the shaded region
+        x1=20,                      # End of the shaded region
+        fillcolor="LightSkyBlue",   # Color of the shade
+        opacity=0.3,                # Make it semi-transparent so you can see gridlines
+        layer="below",              # Push the shade *behind* the data line!
+        line_width=0                # Remove the border around the shaded box
+    )
+
     fig.add_scatter(x=[click_x], y=[Z_clicked[click_y, click_x]], mode='markers', 
                     marker=dict(color='red', size=12), name='Clicked Point')
     
