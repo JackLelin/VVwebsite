@@ -1,5 +1,7 @@
-from dash import html, dcc, Input, Output
-from app_instance import app
+from dash import Dash, html, dcc, Input, Output
+
+# Create the master app instance right here in the main script!
+app = Dash(__name__, suppress_callback_exceptions=True)
 
 # Import the layouts and callbacks from our separate files
 import dashboard

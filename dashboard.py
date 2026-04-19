@@ -1,4 +1,4 @@
-from dash import Dash, html, dcc, Input, Output, State, Patch, no_update, ALL, callback_context
+from dash import Dash, html, dcc, Input, Output, State, Patch, no_update, ALL, callback_context, callback
 import plotly.express as px
 import urllib.parse
 import numpy as np
@@ -14,8 +14,6 @@ def generate_matrix(seed):
 
 # Global reference matrix for the base plot
 Z_ref = generate_matrix(42)
-
-from app_instance import app
 
 # --- 3. Define the Layout ---
 def serve_layout():
@@ -114,7 +112,7 @@ def serve_layout():
 # --- 4. Callbacks ---
 
 # A. Generate the selected plots
-@app.callback(
+@callback(
     Output('left-plots-container', 'children'),
     Input('plot-toggles', 'value'),
     Input('plot-size-slider', 'value'),
@@ -206,7 +204,7 @@ def update_plots(selected_values, plot_size, plot_height):
 
 
 # B. Update the cross-section plot when ANY matrix is clicked
-@app.callback(
+@callback(
     Output('cross-section-plot', 'figure'),
     Input({'type': 'matrix-image', 'index': ALL}, 'clickData'),
     prevent_initial_call=True
@@ -270,7 +268,7 @@ def update_cross_section(clickData_list):
     return fig
 
 # C. Read URL to get the target image from the Gallery
-@app.callback(
+@callback(
     Output('url', 'pathname'), # Dummy output
     Input('url', 'search'),
     prevent_initial_call=False

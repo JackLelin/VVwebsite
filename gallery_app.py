@@ -1,8 +1,6 @@
 import os
 import glob
-from dash import html, dcc, Input, Output, State
-
-from app_instance import app
+from dash import html, dcc, Input, Output, State, callback
 
 # By setting app.layout to a function, Dash will re-evaluate it every time the page is refreshed!
 def serve_layout():
@@ -43,7 +41,7 @@ def serve_layout():
                 target="_blank", # Open in a new tab
                 children=[
                     dcc.Markdown(
-                        f'<img src="{app.get_asset_url(filename)}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
+                        f'<img src="/assets/{filename}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
                         dangerously_allow_html=True
                     )
                 ]
@@ -139,7 +137,7 @@ def serve_layout():
     ], style={'backgroundColor': '#f8f9fa', 'minHeight': '100vh', 'margin': '-8px'}) # -8px margin removes default body margin
 
 # CALLBACK: Toggle the Modal Window Open and Closed
-@app.callback(
+@callback(
     Output("caption-modal", "style"),
     Input("open-modal-btn", "n_clicks"),
     Input("close-modal-btn", "n_clicks"),
