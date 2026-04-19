@@ -18,97 +18,98 @@ Z_ref = generate_matrix(42)
 from app_instance import app
 
 # --- 3. Define the Layout ---
-# Initial default cross-section plot
-initial_y_index = 25
-initial_row = Z_ref[initial_y_index, :]
-initial_fig = px.line(
-    x=np.arange(len(initial_row)), 
-    y=initial_row,
-    title=f"Cross-Section of Original Plot at Y-index: {initial_y_index}",
-    labels={'x': 'X Index', 'y': 'Value'}
-).update_layout(
-    margin=dict(l=40, r=40, t=50, b=40),
-    legend=dict(yanchor="top", y=0.95, xanchor="right", x=0.99) # Move legend inside plot
-)
-initial_fig.add_scatter(x=[25], y=[Z_ref[initial_y_index, 25]], mode='markers', 
-                        marker=dict(color='red', size=12), name='Clicked Point')
+def serve_layout():
+    # Initial default cross-section plot
+    initial_y_index = 25
+    initial_row = Z_ref[initial_y_index, :]
+    initial_fig = px.line(
+        x=np.arange(len(initial_row)), 
+        y=initial_row,
+        title=f"Cross-Section of Original Plot at Y-index: {initial_y_index}",
+        labels={'x': 'X Index', 'y': 'Value'}
+    ).update_layout(
+        margin=dict(l=40, r=40, t=50, b=40),
+        legend=dict(yanchor="top", y=0.95, xanchor="right", x=0.99) # Move legend inside plot
+    )
+    initial_fig.add_scatter(x=[25], y=[Z_ref[initial_y_index, 25]], mode='markers', 
+                            marker=dict(color='red', size=12), name='Clicked Point')
 
-layout = html.Div([
-    html.H1("Dynamic 2D Matrix Dashboard", style={'textAlign': 'center', 'fontFamily': 'sans-serif'}),
-    html.P("Toggle plots using the checkboxes. Click anywhere on any image below to see its 1D cross-section on the right.", 
-           style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'color': 'gray'}),
-    
-    html.Div([
-        html.Span("Select Plots to Display:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
-        dcc.Checklist(
-            id='plot-toggles',
-            options=[
-                {'label': ' Original (Base)', 'value': 0},
-                {'label': ' +10 Offset', 'value': 10},
-                {'label': ' +20 Offset', 'value': 20},
-                {'label': ' +30 Offset', 'value': 30}
-            ],
-            value=[0], # Start with just the original plot checked
-            inline=True,
-            inputStyle={'cursor': 'pointer', 'marginRight': '5px', 'marginLeft': '10px'},
-            labelStyle={'cursor': 'pointer', 'fontSize': '16px', 'fontFamily': 'sans-serif'}
-        )
-    ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '8px 15px', 'backgroundColor': '#f9f9f9', 'borderRadius': '8px', 'width': 'max-content', 'margin': '0 auto 10px auto'}),
-    
-    html.Div([
-        html.Span("Plot Width:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
-        html.Div(
-            dcc.Slider(
-                id='plot-size-slider',
-                min=200, max=1000, step=50, value=500,
-                marks=None,
-                tooltip={"placement": "bottom", "always_visible": True},
-                updatemode='mouseup'
-            ),
-            style={'flex': '1', 'minWidth': '200px'}
-        ),
-        html.Span("Plot Height:", style={'fontWeight': 'bold', 'marginLeft': '30px', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
-        html.Div(
-            dcc.Slider(
-                id='plot-height-slider',
-                min=200, max=1000, step=50, value=600,
-                marks=None,
-                tooltip={"placement": "bottom", "always_visible": True},
-                updatemode='mouseup'
-            ),
-            style={'flex': '1', 'minWidth': '200px'}
-        )
-    ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '5px 15px', 'width': 'max-content', 'margin': '0 auto 20px auto'}),
-    
-    # Create a flex container to hold both the left panes and the right pane
-    html.Div([
-        # Left Pane: Container for dynamically generated plots
-        html.Div(
-            id='left-plots-container',
-            children=[], # Starts empty, filled by callback
-            style={
-                'width': '66.6%', 
-                'display': 'flex',
-                'flexDirection': 'row', # Stack horizontally!
-                'overflowX': 'auto', # Allow horizontal scrolling if multiple plots are added
-                'overflowY': 'auto',
-                'maxHeight': '70vh', # Cap the maximum height of the left pane
-                'borderRight': '3px solid #666', # Visually looks like a separator
-                'paddingRight': '10px'
-            }
-        ),
+    return html.Div([
+        html.H1("Dynamic 2D Matrix Dashboard", style={'textAlign': 'center', 'fontFamily': 'sans-serif'}),
+        html.P("Toggle plots using the checkboxes. Click anywhere on any image below to see its 1D cross-section on the right.", 
+               style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'color': 'gray'}),
         
-        # Right Pane: A secondary plot to show interactivity
         html.Div([
-            dcc.Graph(
-                id='cross-section-plot',
-                figure=initial_fig,
-                style={'width': '100%', 'height': '100%'}
+            html.Span("Select Plots to Display:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
+            dcc.Checklist(
+                id='plot-toggles',
+                options=[
+                    {'label': ' Original (Base)', 'value': 0},
+                    {'label': ' +10 Offset', 'value': 10},
+                    {'label': ' +20 Offset', 'value': 20},
+                    {'label': ' +30 Offset', 'value': 30}
+                ],
+                value=[0], # Start with just the original plot checked
+                inline=True,
+                inputStyle={'cursor': 'pointer', 'marginRight': '5px', 'marginLeft': '10px'},
+                labelStyle={'cursor': 'pointer', 'fontSize': '16px', 'fontFamily': 'sans-serif'}
             )
-        ], style={'flex': '1', 'minWidth': '10%', 'paddingLeft': '10px'})
+        ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '8px 15px', 'backgroundColor': '#f9f9f9', 'borderRadius': '8px', 'width': 'max-content', 'margin': '0 auto 10px auto'}),
         
-    ], style={'display': 'flex', 'flexDirection': 'row', 'width': '100%'})
-])
+        html.Div([
+            html.Span("Plot Width:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
+            html.Div(
+                dcc.Slider(
+                    id='plot-size-slider',
+                    min=200, max=1000, step=50, value=500,
+                    marks=None,
+                    tooltip={"placement": "bottom", "always_visible": True},
+                    updatemode='mouseup'
+                ),
+                style={'flex': '1', 'minWidth': '200px'}
+            ),
+            html.Span("Plot Height:", style={'fontWeight': 'bold', 'marginLeft': '30px', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
+            html.Div(
+                dcc.Slider(
+                    id='plot-height-slider',
+                    min=200, max=1000, step=50, value=600,
+                    marks=None,
+                    tooltip={"placement": "bottom", "always_visible": True},
+                    updatemode='mouseup'
+                ),
+                style={'flex': '1', 'minWidth': '200px'}
+            )
+        ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '5px 15px', 'width': 'max-content', 'margin': '0 auto 20px auto'}),
+        
+        # Create a flex container to hold both the left panes and the right pane
+        html.Div([
+            # Left Pane: Container for dynamically generated plots
+            html.Div(
+                id='left-plots-container',
+                children=[], # Starts empty, filled by callback
+                style={
+                    'width': '66.6%', 
+                    'display': 'flex',
+                    'flexDirection': 'row', # Stack horizontally!
+                    'overflowX': 'auto', # Allow horizontal scrolling if multiple plots are added
+                    'overflowY': 'auto',
+                    'maxHeight': '70vh', # Cap the maximum height of the left pane
+                    'borderRight': '3px solid #666', # Visually looks like a separator
+                    'paddingRight': '10px'
+                }
+            ),
+            
+            # Right Pane: A secondary plot to show interactivity
+            html.Div([
+                dcc.Graph(
+                    id='cross-section-plot',
+                    figure=initial_fig,
+                    style={'width': '100%', 'height': '100%'}
+                )
+            ], style={'flex': '1', 'minWidth': '10%', 'paddingLeft': '10px'})
+            
+        ], style={'display': 'flex', 'flexDirection': 'row', 'width': '100%'})
+    ])
 
 # --- 4. Callbacks ---
 

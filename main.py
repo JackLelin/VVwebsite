@@ -19,16 +19,16 @@ app.layout = html.Div([
 def display_page(pathname):
     if pathname == '/dashboard':
         # Render the detailed plot view
-        return dashboard.layout
+        return dashboard.serve_layout()
     else:
         # Default to the gallery (Main Entrance)
         return gallery_app.serve_layout()
 
 if __name__ == '__main__':
-    # print("\n" + "="*50)
-    # print("🚀 Starting Multi-Page Dash Application!")
-    # print("Main Entrance (Gallery): http://127.0.0.1:8050/")
-    # print("Detailed Plot Page:      http://127.0.0.1:8050/dashboard")
-    # print("="*50 + "\n")
+    print("\n" + "="*50)
+    print("🚀 Starting Multi-Page Dash Application!")
+    print("Main Entrance (Gallery): http://127.0.0.1:8050/")
+    print("Detailed Plot Page:      http://127.0.0.1:8050/dashboard")
+    print("="*50 + "\n")
     
     app.run(debug=True, port=8050)
