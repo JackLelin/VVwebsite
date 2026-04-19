@@ -13,23 +13,23 @@ def generate_matrix(seed):
     return Z
 
 # Global reference matrix for the base plot
-Z_ref = generate_matrix(42)
+base_reference_matrix = generate_matrix(42)
 
 # --- 3. Define the Layout ---
 def serve_layout():
     # Initial default cross-section plot
-    initial_y_index = 25
-    initial_row = Z_ref[initial_y_index, :]
-    initial_fig = px.line(
-        x=np.arange(len(initial_row)), 
-        y=initial_row,
-        title=f"Cross-Section of Original Plot at Y-index: {initial_y_index}",
+    default_y_index = 25
+    default_row_data = base_reference_matrix[default_y_index, :]
+    default_cross_section_figure = px.line(
+        x=np.arange(len(default_row_data)), 
+        y=default_row_data,
+        title=f"Cross-Section of Original Plot at Y-index: {default_y_index}",
         labels={'x': 'X Index', 'y': 'Value'}
     ).update_layout(
         margin=dict(l=40, r=40, t=50, b=40),
         legend=dict(yanchor="top", y=0.95, xanchor="right", x=0.99) # Move legend inside plot
     )
-    initial_fig.add_scatter(x=[25], y=[Z_ref[initial_y_index, 25]], mode='markers', 
+    default_cross_section_figure.add_scatter(x=[25], y=[base_reference_matrix[default_y_index, 25]], mode='markers', 
                             marker=dict(color='red', size=12), name='Clicked Point')
 
     return html.Div([
@@ -101,7 +101,7 @@ def serve_layout():
             html.Div([
                 dcc.Graph(
                     id='cross-section-plot',
-                    figure=initial_fig,
+                    figure=default_cross_section_figure,
                     style={'width': '100%', 'height': '100%'}
                 )
             ], style={'flex': '1', 'minWidth': '10%', 'paddingLeft': '10px'})
@@ -119,19 +119,19 @@ def serve_layout():
     Input('plot-height-slider', 'value')
 )
 def update_plots(selected_values, plot_size, plot_height):
-    children = []
+    heatmap_components_list = []
     
     # Sort so they appear in a consistent order (Original, +10, +20, +30)
     for offset in sorted(selected_values):
         
         # ADD the offset to the base matrix!
-        Z_new = Z_ref + offset
+        offset_matrix = base_reference_matrix + offset
         
         plot_title = "Original 2D Plot" if offset == 0 else f"2D Plot (+{offset} Offset)"
         
         # Create the figure
-        new_fig = px.imshow(
-            Z_new, 
+        heatmap_figure = px.imshow(
+            offset_matrix, 
             labels=dict(x="X-Axis Label", y="Y-Axis Label", color="Intensity"),
             title=plot_title,
             color_continuous_scale="Viridis",
@@ -154,11 +154,11 @@ def update_plots(selected_values, plot_size, plot_height):
         )
         
         # ADD CROSSHAIRS!
-        new_fig.update_xaxes(showspikes=True, spikemode="across", spikedash="solid", spikecolor="gray", spikethickness=1)
-        new_fig.update_yaxes(showspikes=True, spikemode="across", spikedash="solid", spikecolor="gray", spikethickness=1)
+        heatmap_figure.update_xaxes(showspikes=True, spikemode="across", spikedash="solid", spikecolor="gray", spikethickness=1)
+        heatmap_figure.update_yaxes(showspikes=True, spikemode="across", spikedash="solid", spikecolor="gray", spikethickness=1)
 
         # CUSTOMIZE THE HOVER TOOLTIP!
-        new_fig.update_traces(
+        heatmap_figure.update_traces(
             hovertemplate=(
                 "<b>X-Coordinate:</b> %{x}<br>"
                 "<b>Y-Coordinate:</b> %{y}<br>"
@@ -168,7 +168,7 @@ def update_plots(selected_values, plot_size, plot_height):
         )
 
        # ADD A LINE OR SCATTER PLOT ON TOP OF THE 2D HEATMAP!
-        new_fig.add_scatter(
+        heatmap_figure.add_scatter(
             x=[10, 20, 30, 40],        # Array of X coordinates
             y=[10, 35, 15, 45],        # Array of Y coordinates
             mode='lines+markers',      # Choose 'lines', 'markers', or 'lines+markers'
@@ -179,11 +179,11 @@ def update_plots(selected_values, plot_size, plot_height):
         )
 
         # Wrap the new figure in a fixed-size div, no longer individually resizable
-        new_plot_component = html.Div([
+        heatmap_wrapper_div = html.Div([
             dcc.Graph(
                 # Using Pattern-Matching IDs! The index is the offset value.
                 id={'type': 'matrix-image', 'index': offset},
-                figure=new_fig,
+                figure=heatmap_figure,
                 responsive=True, # This tells Plotly to instantly fill its container
                 style={
                     'width': '100%', 
@@ -198,9 +198,9 @@ def update_plots(selected_values, plot_size, plot_height):
             'flexShrink': 0
         })
         
-        children.append(new_plot_component)
+        heatmap_components_list.append(heatmap_wrapper_div)
         
-    return children
+    return heatmap_components_list
 
 
 # B. Update the cross-section plot when ANY matrix is clicked
@@ -236,16 +236,16 @@ def update_cross_section(clickData_list):
     click_y = clickData['points'][0]['y']
     
     # Re-generate the exact Z matrix for the plot that was clicked
-    Z_clicked = Z_ref + plot_offset
+    clicked_matrix = base_reference_matrix + plot_offset
     
-    row_data = Z_clicked[click_y, :]
+    selected_row_data = clicked_matrix[click_y, :]
     
     # Plot the 1D cross-section
     plot_title = f"Cross-Section of Original Plot at Y: {click_y}" if plot_offset == 0 else f"Cross-Section of +{plot_offset} Plot at Y: {click_y}"
     
-    fig = px.line(
-        x=np.arange(len(row_data)), 
-        y=row_data,
+    updated_cross_section_plot = px.line(
+        x=np.arange(len(selected_row_data)), 
+        y=selected_row_data,
         title=plot_title,
         labels={'x': 'X Index', 'y': 'Value'}
     ).update_layout(
@@ -253,7 +253,7 @@ def update_cross_section(clickData_list):
         legend=dict(yanchor="top", y=0.95, xanchor="right", x=0.99) # Move legend inside plot
     )
     # Add a shaded region under the curve between X=10 and X=20
-    fig.add_vrect(
+    updated_cross_section_plot.add_vrect(
         x0=10,                      # Start of the shaded region
         x1=20,                      # End of the shaded region
         fillcolor="LightSkyBlue",   # Color of the shade
@@ -262,10 +262,10 @@ def update_cross_section(clickData_list):
         line_width=0                # Remove the border around the shaded box
     )
 
-    fig.add_scatter(x=[click_x], y=[Z_clicked[click_y, click_x]], mode='markers', 
+    updated_cross_section_plot.add_scatter(x=[click_x], y=[clicked_matrix[click_y, click_x]], mode='markers', 
                     marker=dict(color='red', size=12), name='Clicked Point')
     
-    return fig
+    return updated_cross_section_plot
 
 # C. Read URL to get the target image from the Gallery
 @callback(

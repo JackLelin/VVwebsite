@@ -5,10 +5,10 @@ from dash import html, dcc, Input, Output, State, callback
 # By setting app.layout to a function, Dash will re-evaluate it every time the page is refreshed!
 def serve_layout():
     # 1. Dynamically scan the assets folder
-    assets_dir = os.path.join(os.path.dirname(__file__), 'assets')
+    gallery_assets_directory = os.path.join(os.path.dirname(__file__), 'assets')
     
     # Check if the assets folder exists
-    if not os.path.exists(assets_dir):
+    if not os.path.exists(gallery_assets_directory):
         return html.Div([
             html.H1("Image Gallery Dashboard", style={'fontFamily': 'sans-serif', 'color': '#333'}),
             html.P("The 'assets' folder does not exist yet.", style={'color': 'red', 'fontSize': '18px'}),
@@ -16,13 +16,13 @@ def serve_layout():
         ], style={'textAlign': 'center', 'padding': '50px', 'fontFamily': 'sans-serif'})
         
     # Find all PNG files
-    search_pattern = os.path.join(assets_dir, '*.png')
-    png_files = glob.glob(search_pattern)
+    search_pattern = os.path.join(gallery_assets_directory, '*.png')
+    gallery_png_filepaths = glob.glob(search_pattern)
     
     # Sort them alphabetically
-    png_files.sort()
+    gallery_png_filepaths.sort()
     
-    if not png_files:
+    if not gallery_png_filepaths:
         return html.Div([
             html.H1("Image Gallery Dashboard", style={'fontFamily': 'sans-serif', 'color': '#333'}),
             html.P("No PNG images found in the 'assets' folder.", style={'color': 'red', 'fontSize': '18px'}),
@@ -30,12 +30,12 @@ def serve_layout():
         ], style={'textAlign': 'center', 'padding': '50px', 'fontFamily': 'sans-serif'})
 
     # 2. Build the image grid
-    image_components = []
-    for filepath in png_files:
+    gallery_image_cards = []
+    for filepath in gallery_png_filepaths:
         filename = os.path.basename(filepath)
         
         # Create a card for each image
-        card = html.Div([
+        image_card_container = html.Div([
             html.A(
                 href=f"/dashboard?image={filename}", # Link to the detailed plot page
                 target="_blank", # Open in a new tab
@@ -65,7 +65,7 @@ def serve_layout():
             'alignItems': 'center',
             'transition': 'transform 0.2s ease-in-out'
         })
-        image_components.append(card)
+        gallery_image_cards.append(image_card_container)
 
     # 3. Define the Pop-Up Modal Window
     caption_modal = html.Div(id="caption-modal", style={
@@ -112,7 +112,7 @@ def serve_layout():
         # Header Area
         html.Div([
             html.H1("Trace Thinning Image Gallery", style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'color': '#2c3e50', 'margin': '0 0 10px 0'}),
-            html.P(f"Found {len(png_files)} images in the assets folder.", style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'color': '#7f8c8d', 'margin': '0 0 15px 0'}),
+            html.P(f"Found {len(gallery_png_filepaths)} images in the assets folder.", style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'color': '#7f8c8d', 'margin': '0 0 15px 0'}),
             # Floating Button Container
             html.Div([
                 html.Button("📖 View Panel Explanations", id="open-modal-btn", style={
@@ -126,7 +126,7 @@ def serve_layout():
         ], style={'padding': '40px 0', 'backgroundColor': '#fff', 'boxShadow': '0 2px 10px rgba(0,0,0,0.05)', 'marginBottom': '30px'}),
         
         # Single Column Layout
-        html.Div(image_components, style={
+        html.Div(gallery_image_cards, style={
             'display': 'flex',
             'flexDirection': 'column', # Stack images vertically
             'gap': '40px', # Generous spacing between the wide plots

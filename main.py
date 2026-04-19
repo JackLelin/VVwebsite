@@ -1,20 +1,20 @@
 from dash import Dash, html, dcc, Input, Output
 
 # Create the master app instance right here in the main script!
-app = Dash(__name__, suppress_callback_exceptions=True)
+vipir_app = Dash(__name__, suppress_callback_exceptions=True)
 
 # Import the layouts and callbacks from our separate files
 import dashboard
 import gallery_app
 
 # The Master Router Layout
-app.layout = html.Div([
+vipir_app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     html.Div(id='page-content')
 ])
 
 # The Router Callback
-@app.callback(
+@vipir_app.callback(
     Output('page-content', 'children'),
     Input('url', 'pathname')
 )
@@ -33,4 +33,4 @@ if __name__ == '__main__':
     print("Detailed Plot Page:      http://127.0.0.1:8050/dashboard")
     print("="*50 + "\n")
     
-    app.run(debug=True, port=8050)
+    vipir_app.run(debug=True, port=8050)
