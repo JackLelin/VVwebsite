@@ -3,6 +3,8 @@ import plotly.express as px
 import urllib.parse
 import numpy as np
 
+consolidate_dir = "assets/Consolidated/" # directory where npy files are stored
+
 # --- 1. Helper function to generate dummy 2D data ---
 def generate_matrix(seed):
     np.random.seed(seed)
@@ -279,6 +281,105 @@ def handle_gallery_redirect(search_query):
         if 'image' in parsed:
             filename = parsed['image'][0]
             print(f"\n{'='*60}\nSUCCESS! Received filename from gallery: {filename}\n{'='*60}\n")
+
+            data = np.load(consolidate_dir + filename, allow_pickle=True)[()]
+            freqs = data['vipir_freqs']
+            hts = data['vipir_hts']
+            img = data['vipir_binary_ionogram']
+            org = data['vipir_original']
+            fvsO = data['vipir_inversion_fvsO']
+            vhsO = data['vipir_inversion_vhsO']
+            fvsX = data['vipir_inversion_fvsX']
+            vhsX = data['vipir_inversion_vhsX']
+            losses = data['vipir_inversion_all_losses']
+            x_vals = data['vipir_inversion_all_xvals'][-1]
+            z = data['vipir_inversion_z_node']
+            Z = data['vipir_inversion_z_hts']
+            fps = data['vipir_inversion_fps']
+            
+            fig, axes = plt.subplots(1, 4, figsize=(20, 6), gridspec_kw={'wspace': 0.07})
+            --- (a) original ionogram ---
+            ax1 = axes[0]
+            im1 = ax1.pcolormesh(freqs,hts,10*np.log10(org+1),shading='auto',cmap='jet')
+            im1.set_clim([10, 70])
+            ax1.set_xlim(freqs.min(),freqs.max())
+            ax1.set_ylim(hts.min() ,hts.max())
+            ax1.set_title("(a) Original Ionogram (dB)")
+            ax1.set_xlabel("Frequency (MHz)")
+            ax1.set_ylabel("Virtual Height (km)")
+
+            # --- (b) Inversion result ---
+            ax2 = axes[1]
+            im2 = ax2.pcolormesh(freqs,hts,10*np.log10(org+1),shading='auto',cmap='binary')
+            im2.set_clim([10, 70])
+            m, = ax2.plot (fps, Z, '-',color='darkgreen', label='spline fp')
+            l, = ax2.plot (x_vals,z,color='g',linestyle='none',marker='o',markersize=6, label='spline node')
+            mO, = ax2.plot(fvsO, vhsO, 'r-', label='O-trace hv')
+            mX, = ax2.plot(fvsX, vhsX, 'b-', label='X-trace hv')
+            ax2.legend(loc='best')
+            ax2.set_xlim(freqs.min(),freqs.max())
+            ax2.set_ylim(hts.min() ,hts.max())
+            ax2.set_title("(b) Inversion Result")
+            ax2.set_xlabel("Frequency (MHz)")
+            ax2.set_yticks([])
+
+            # --- (c) Thinned Traces ---
+            imgO = data['vipir_DNN_imgO']
+            imgX = data['vipir_DNN_imgX']
+            idx_o = data['vipir_thin_freqidx_o']
+            mu_o = data['vipir_thin_mu_o']
+            std_o = data['vipir_thin_std_o']
+            A_o = data['vipir_thin_A_o']
+            idx_x = data['vipir_thin_freqidx_x']
+            mu_x = data['vipir_thin_mu_x']
+            std_x = data['vipir_thin_std_x']
+            A_x = data['vipir_thin_A_x']
+
+            filtered_idx_o, filtered_mu_o, filtered_std_o, filtered_A_o = filter_out_noise_peaks(imgO, np.array(idx_o), np.array(mu_o), np.array(std_o), np.array(A_o))
+            filtered_idx_x, filtered_mu_x, filtered_std_x, filtered_A_x = filter_out_noise_peaks(imgX, np.array(idx_x), np.array(mu_x), np.array(std_x), np.array(A_x))
+
+            ax3 = axes[2]
+            im4 = ax3.pcolormesh(freqs, hts, 10*np.log10(org+1), shading='auto', cmap='binary', alpha=1)
+            im4.set_clim([10, 70])
+            # X-mode Thinned
+            scat_idx_x = np.append(np.arange(filtered_idx_x.shape[0]//5)*5, -2)
+            idx_x_ints = np.round(filtered_idx_x[scat_idx_x]).astype(int)
+            mu_x_ints  = np.round(filtered_mu_x[scat_idx_x]).astype(int)
+            ax3.scatter(freqs[idx_x_ints], hts[mu_x_ints], marker='x', s=35, linewidths=0.9, color='b', label='X-mode')
+
+            # O-mode Thinned
+            scat_idx_o = np.append(np.arange(filtered_idx_o.shape[0]//5)*5, -2)
+            idx_o_ints = np.round(filtered_idx_o[scat_idx_o]).astype(int)
+            mu_o_ints  = np.round(filtered_mu_o[scat_idx_o]).astype(int)
+            ax3.scatter(freqs[idx_o_ints], hts[mu_o_ints], marker='x', s=35, linewidths=0.9, color='r', label='O-mode')
+
+            ax3.set_xlabel("Frequency (MHz)")
+            ax3.set_yticks([])
+            ax3.set_title("(c) Thinned Traces with GMM")
+            ax3.legend(loc='best')
+
+            # --- (d) phase result ---
+            phase_isr = data['valley_phase']
+            phase_unwrapped = data['valley_phase_unwrapped']
+            best_channel_idx = data['valley_phase_bestchannel'] 
+            p_sim = data['vipir_inversion_phase_sim']
+
+            ax4 = axes[3]
+            offset3 = np.mean(phase_unwrapped[best_channel_idx][200:] - p_sim[200:])
+            ax4.plot(p_sim + offset3 + 2*np.pi, valleyz, c='r')
+            ax4.plot(p_sim + offset3, valleyz, c='r', label='Predicted Phase')
+            ax4.plot(p_sim + offset3 - 2*np.pi, valleyz, c='r')
+
+            ax4.scatter(phase_isr[best_channel_idx], valleyz, marker='.', color='b', label='ISR Phase')
+            ax4.scatter(phase_isr[best_channel_idx]+2*np.pi, valleyz, marker='.', color='b')
+            ax4.scatter(phase_isr[best_channel_idx]-2*np.pi, valleyz, marker='.', color='b')
+            ax4.set_ylim(hts.min(), hts.max())
+            ax4.set_xlim(-np.pi, np.pi)
+            ax4.set_xlabel("Phase (rad)")
+            ax4.set_yticks([])
+            ax4.set_title("(d) ISR Phase Profile")
+            ax4.axhspan(valleyz.min(), valleyz.max(), color='gray', alpha=0.2, label='ISR range')
+            ax4.legend(loc='best')
     return no_update
 
 # --- 5. Run the Server ---

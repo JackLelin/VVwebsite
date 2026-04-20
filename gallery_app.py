@@ -2,10 +2,17 @@ import os
 import glob
 from dash import html, dcc, Input, Output, State, callback
 
+# ==========================================
+# CONFIGURATION
+# ==========================================
+# The sub-folder inside 'assets' where the gallery images are stored.
+# Set to 'Preview_figures' to scan assets/Preview_figures, or '' for the root assets folder.
+TARGET_GALLERY_SUBDIR = 'Preview_figures'
+
 # By setting app.layout to a function, Dash will re-evaluate it every time the page is refreshed!
 def serve_layout():
-    # 1. Dynamically scan the assets folder
-    gallery_assets_directory = os.path.join(os.path.dirname(__file__), 'assets')
+    # 1. Dynamically scan the target folder
+    gallery_assets_directory = os.path.join(os.path.dirname(__file__), 'assets', TARGET_GALLERY_SUBDIR)
     
     # Check if the assets folder exists
     if not os.path.exists(gallery_assets_directory):
@@ -41,7 +48,7 @@ def serve_layout():
                 target="_blank", # Open in a new tab
                 children=[
                     dcc.Markdown(
-                        f'<img src="/assets/{filename}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
+                        f'<img src="/assets/{TARGET_GALLERY_SUBDIR}/{filename}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
                         dangerously_allow_html=True
                     )
                 ]
