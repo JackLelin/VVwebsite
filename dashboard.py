@@ -1,5 +1,5 @@
 import os
-from dash import Dash, html, dcc, Input, Output, State, no_update, callback
+from dash import Dash, html, dcc, Input, Output, State, no_update, callback, clientside_callback
 import plotly.express as px
 import plotly.graph_objects as go
 import urllib.parse
@@ -36,6 +36,14 @@ def filter_out_noise_peaks(img, freqs, idx, mu, std, A):
     return np.array(x_filtered), np.array(mu_filtered), np.array(std_filtered), np.array(A_filtered)
 
 # --- 3. Define the Layout ---
+
+PLOT_CONFIG = [
+    {'id': 'a', 'label': '(a) Original Ionogram'},
+    {'id': 'b', 'label': '(b) Inversion Result'},
+    {'id': 'c', 'label': '(c) Thinned Traces'},
+    {'id': 'd', 'label': '(d) ISR Phase Profile'}
+]
+
 def serve_layout():
     return html.Div([
         # LEFT PANE (75%)
@@ -48,13 +56,8 @@ def serve_layout():
                 html.Span("Select Panels to Display:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
                 dcc.Checklist(
                     id='plot-toggles',
-                    options=[
-                        {'label': ' (a) Original Ionogram', 'value': 'a'},
-                        {'label': ' (b) Inversion Result', 'value': 'b'},
-                        {'label': ' (c) Thinned Traces', 'value': 'c'},
-                        {'label': ' (d) ISR Phase Profile', 'value': 'd'}
-                    ],
-                    value=['a', 'b', 'c', 'd'], # Start with all panels checked
+                    options=[{'label': f" {p['label']}", 'value': p['id']} for p in PLOT_CONFIG],
+                    value=[p['id'] for p in PLOT_CONFIG], # Start with all panels checked
                     inline=True,
                     inputStyle={'cursor': 'pointer', 'marginRight': '5px', 'marginLeft': '10px'},
                     labelStyle={'cursor': 'pointer', 'fontSize': '16px', 'fontFamily': 'sans-serif'}
@@ -88,10 +91,15 @@ def serve_layout():
             
             # Container for dynamically generated plots
             html.Div([
-                html.Div(dcc.Graph(id='plot-a-graph', style={'width': '100%', 'height': '100%'}), id='plot-a-wrapper', style={'display': 'none'}),
-                html.Div(dcc.Graph(id='plot-b-graph', style={'width': '100%', 'height': '100%'}), id='plot-b-wrapper', style={'display': 'none'}),
-                html.Div(dcc.Graph(id='plot-c-graph', style={'width': '100%', 'height': '100%'}), id='plot-c-wrapper', style={'display': 'none'}),
-                html.Div(dcc.Graph(id='plot-d-graph', style={'width': '100%', 'height': '100%'}), id='plot-d-wrapper', style={'display': 'none'}),
+                html.Div(
+                    dcc.Graph(
+                        id=f"plot-{p['id']}-graph", 
+                        style={'width': '100%', 'height': '100%'},
+                        config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
+                    ), 
+                    id=f"plot-{p['id']}-wrapper", 
+                    style={'display': 'none'}
+                ) for p in PLOT_CONFIG
             ],
                 id='left-plots-container',
                 style={
@@ -111,7 +119,8 @@ def serve_layout():
             dcc.Graph(
                 id='cross-section-plot',
                 figure=go.Figure().update_layout(title="Click on the (a) Original Ionogram to see cross-section", margin=dict(l=40, r=40, t=50, b=40)),
-                style={'width': '100%', 'height': '400px'} # Fixed height for column stack
+                style={'width': '100%', 'height': '400px'}, # Fixed height for column stack
+                config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
             )
             # More plots can be added here easily in a column!
         ], style={'width': '25%', 'paddingLeft': '20px', 'display': 'flex', 'flexDirection': 'column', 'gap': '20px'})
@@ -121,31 +130,34 @@ def serve_layout():
 # --- 4. Callbacks ---
 # --- 4. Callbacks ---
 
-# Callback 1: Toggle Styles (Lightning Fast - Does not reload data or plots)
-@callback(
-    Output('plot-a-wrapper', 'style'),
-    Output('plot-b-wrapper', 'style'),
-    Output('plot-c-wrapper', 'style'),
-    Output('plot-d-wrapper', 'style'),
+# Callback 1: Toggle Styles (Client-Side Javascript - No server roundtrip)
+clientside_callback(
+    f"""
+    function(selected_panels, width, height) {{
+        var styles = [];
+        var panels = { [p['id'] for p in PLOT_CONFIG] };
+        for (var i = 0; i < panels.length; i++) {{
+            if (selected_panels.includes(panels[i])) {{
+                styles.push({{
+                    'display': 'block',
+                    'width': width + 'px',
+                    'height': height + 'px',
+                    'border': '1px dashed #aaa',
+                    'marginRight': '10px',
+                    'flexShrink': 0
+                }});
+            }} else {{
+                styles.push({{'display': 'none'}});
+            }}
+        }}
+        return styles;
+    }}
+    """,
+    [Output(f"plot-{p['id']}-wrapper", 'style') for p in PLOT_CONFIG],
     Input('plot-toggles', 'value'),
     Input('plot-size-slider', 'value'),
     Input('plot-height-slider', 'value')
 )
-def update_styles(selected_panels, width, height):
-    styles = []
-    for panel in ['a', 'b', 'c', 'd']:
-        if panel in selected_panels:
-            styles.append({
-                'display': 'block',
-                'width': f'{width}px',
-                'height': f'{height}px',
-                'border': '1px dashed #aaa',
-                'marginRight': '10px',
-                'flexShrink': 0
-            })
-        else:
-            styles.append({'display': 'none'})
-    return styles
 
 # Callback 2: Load Data & Generate Plots (Slow - Only runs ONCE on page load)
 @callback(
@@ -195,11 +207,22 @@ def generate_all_plots(search_query):
     vhsO = data['vipir_inversion_vhsO']
     fvsX = data['vipir_inversion_fvsX']
     vhsX = data['vipir_inversion_vhsX']
+    
     fig_b.add_scatter(x=fps, y=Z, mode='lines', line=dict(color='darkgreen'), name='spline fp')
     fig_b.add_scatter(x=x_vals, y=z, mode='markers', marker=dict(color='green', size=6), name='spline node')
     fig_b.add_scatter(x=fvsO, y=vhsO, mode='lines', line=dict(color='red'), name='O-trace hv')
     fig_b.add_scatter(x=fvsX, y=vhsX, mode='lines', line=dict(color='blue'), name='X-trace hv')
-    fig_b.update_layout(title="(b) Inversion Result", xaxis_title="Frequency (MHz)", yaxis_title="Virtual Height (km)", margin=dict(l=10, r=10, t=35, b=10), legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor="rgba(255,255,255,0.7)"))
+    
+    fig_b.update_layout(
+        title="(b) Inversion Result", 
+        xaxis_title="Frequency (MHz)", 
+        yaxis_title="Virtual Height (km)", 
+        margin=dict(l=10, r=10, t=35, b=10), 
+        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor="rgba(255,255,255,0.7)")
+    )
+    # Force Plotly to respect the limits and act exactly like plt.xlim() and plt.ylim()
+    fig_b.update_xaxes(range=[freqs.min(), freqs.max()], autorange=False)
+    fig_b.update_yaxes(range=[hts.min(), hts.max()], autorange=False)
     
     # (c) Thinned Traces
     fig_c = px.imshow(intensity, x=freqs, y=hts, color_continuous_scale='gray_r', origin='lower', aspect='auto')
