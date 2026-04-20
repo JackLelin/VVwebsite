@@ -2,6 +2,7 @@ import os
 from dash import Dash, html, dcc, Input, Output, State, no_update, callback, clientside_callback, Patch, ctx
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import urllib.parse
 import numpy as np
 
@@ -89,17 +90,26 @@ def serve_layout():
                 )
             ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '5px 15px', 'width': 'max-content', 'margin': '0 auto 20px auto'}),
             
-            # Container for dynamically generated plots
+            # Container for plots — ABC are a single synced subplot figure, D is separate
             html.Div([
                 html.Div(
                     dcc.Graph(
-                        id=f"plot-{p['id']}-graph", 
+                        id='plot-abc-graph', 
                         style={'width': '100%', 'height': '100%'},
                         config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
                     ), 
-                    id=f"plot-{p['id']}-wrapper", 
+                    id='plot-abc-wrapper', 
+                    style={'display': 'block', 'flexShrink': 0}
+                ),
+                html.Div(
+                    dcc.Graph(
+                        id='plot-d-graph', 
+                        style={'width': '100%', 'height': '100%'},
+                        config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
+                    ), 
+                    id='plot-d-wrapper', 
                     style={'display': 'none'}
-                ) for p in PLOT_CONFIG
+                ),
             ],
                 id='left-plots-container',
                 style={
@@ -128,63 +138,80 @@ def serve_layout():
     ], style={'display': 'flex', 'flexDirection': 'row', 'width': '100%', 'padding': '20px', 'boxSizing': 'border-box'})
 
 # --- 4. Callbacks ---
-# --- 4. Callbacks ---
 
-# Callback 1: Toggle Styles (Client-Side Javascript - No server roundtrip)
+# Callback 1: Toggle visibility & resize (Client-Side Javascript - No server roundtrip)
+# ABC panels control column visibility in the subplot; D wrapper is shown/hidden directly.
 clientside_callback(
-    f"""
-    function(selected_panels, width, height) {{
-        var styles = [];
-        var panels = { [p['id'] for p in PLOT_CONFIG] };
-        for (var i = 0; i < panels.length; i++) {{
-            if (selected_panels.includes(panels[i])) {{
-                styles.push({{
-                    'display': 'block',
-                    'width': width + 'px',
-                    'height': height + 'px',
-                    'border': '1px dashed #aaa',
-                    'marginRight': '10px',
-                    'flexShrink': 0
-                }});
-            }} else {{
-                styles.push({{'display': 'none'}});
-            }}
-        }}
-        return styles;
-    }}
+    """
+    function(selected_panels, width, height) {
+        // ABC wrapper: show if any of a, b, c is selected
+        var abcPanels = ['a', 'b', 'c'];
+        var anyABC = abcPanels.some(function(p) { return selected_panels.includes(p); });
+        
+        // Count how many ABC panels are visible to calculate total width
+        var abcCount = abcPanels.filter(function(p) { return selected_panels.includes(p); }).length;
+        
+        var abcStyle;
+        if (anyABC) {
+            abcStyle = {
+                'display': 'block',
+                'width': (width * abcCount) + 'px',
+                'height': height + 'px',
+                'flexShrink': 0
+            };
+        } else {
+            abcStyle = {'display': 'none'};
+        }
+        
+        var dStyle;
+        if (selected_panels.includes('d')) {
+            dStyle = {
+                'display': 'block',
+                'width': width + 'px',
+                'height': height + 'px',
+                'border': '1px dashed #aaa',
+                'marginRight': '10px',
+                'flexShrink': 0
+            };
+        } else {
+            dStyle = {'display': 'none'};
+        }
+        
+        return [abcStyle, dStyle];
+    }
     """,
-    [Output(f"plot-{p['id']}-wrapper", 'style') for p in PLOT_CONFIG],
+    Output('plot-abc-wrapper', 'style'),
+    Output('plot-d-wrapper', 'style'),
     Input('plot-toggles', 'value'),
     Input('plot-size-slider', 'value'),
     Input('plot-height-slider', 'value')
 )
 
 
-
-# Callback 2: Load Data & Generate Plots (Slow - Only runs ONCE on page load)
+# Callback 2: Load Data & Generate Plots (Only runs ONCE on page load or when toggles change)
 @callback(
-    Output('plot-a-graph', 'figure'),
-    Output('plot-b-graph', 'figure'),
-    Output('plot-c-graph', 'figure'),
+    Output('plot-abc-graph', 'figure'),
     Output('plot-d-graph', 'figure'),
-    Input('url', 'search')
+    Input('url', 'search'),
+    Input('plot-toggles', 'value')
 )
-def generate_all_plots(search_query):
-    empty_fig = go.Figure().update_layout(title="No data loaded")
+def generate_all_plots(search_query, selected_panels):
+    empty_abc = make_subplots(rows=1, cols=1).update_layout(title="No data loaded")
+    empty_d = go.Figure().update_layout(title="No data loaded")
     
     if not search_query:
-        return empty_fig, empty_fig, empty_fig, empty_fig
+        return empty_abc, empty_d
         
     parsed = urllib.parse.parse_qs(search_query.lstrip('?'))
     if 'image' not in parsed:
-        return empty_fig, empty_fig, empty_fig, empty_fig
+        return empty_abc, empty_d
         
     filename = parsed['image'][0]
     npy_filename = filename.replace('.png', '.npy')
     filepath = os.path.join(consolidate_dir, npy_filename)
     
     if not os.path.exists(filepath):
-        return empty_fig, empty_fig, empty_fig, empty_fig
+        return empty_abc, empty_d
         
     # Load data ONCE
     data = np.load(filepath, allow_pickle=True)[()]
@@ -193,60 +220,134 @@ def generate_all_plots(search_query):
     org = data['vipir_original']
     intensity = 10 * np.log10(org + 1)
     
+    # --- Determine which ABC panels are visible ---
+    abc_panels = [p for p in ['a', 'b', 'c'] if p in selected_panels]
+    n_cols = len(abc_panels) if abc_panels else 1
+    
+    # Build column titles based on which panels are active
+    col_titles = []
+    for p in abc_panels:
+        if p == 'a':
+            col_titles.append("(a) Original Ionogram (dB)")
+        elif p == 'b':
+            col_titles.append("(b) Inversion Result")
+        elif p == 'c':
+            col_titles.append("(c) Thinned Traces with GMM")
+    
+    if not abc_panels:
+        col_titles = ["No panels selected"]
+    
+    # Create subplot figure with shared axes — this is the Plotly equivalent of 
+    # Bokeh's shared Range1d: zoom/pan on any subplot automatically syncs all others
+    fig_abc = make_subplots(
+        rows=1, cols=n_cols,
+        shared_xaxes=True, shared_yaxes=True,
+        subplot_titles=col_titles,
+        horizontal_spacing=0.03
+    )
+    
+    col_idx = 0  # track current column position
+    
     # (a) Original Ionogram
-    fig_a = px.imshow(intensity, x=freqs, y=hts, color_continuous_scale='jet', origin='lower', aspect='auto')
-    fig_a.update_coloraxes(cmin=10, cmax=70, colorbar=dict(thickness=10))
-    fig_a.update_layout(title="(a) Original Ionogram (dB)", xaxis_title="Frequency (MHz)", yaxis_title="Virtual Height (km)", margin=dict(l=10, r=10, t=35, b=10))
+    if 'a' in abc_panels:
+        col_idx = abc_panels.index('a') + 1
+        fig_abc.add_trace(
+            go.Heatmap(
+                z=intensity, x=freqs, y=hts,
+                colorscale='Jet', zmin=10, zmax=70,
+                colorbar=dict(thickness=10, x=1.0, len=0.9),
+                name='Original', showlegend=False
+            ),
+            row=1, col=col_idx
+        )
     
     # (b) Inversion Result
-    fig_b = px.imshow(intensity, x=freqs, y=hts, color_continuous_scale='gray_r', origin='lower', aspect='auto')
-    fig_b.update_coloraxes(cmin=10, cmax=70, colorbar=dict(thickness=10))
-    fps = data['vipir_inversion_fps']
-    Z = data['vipir_inversion_z_hts']
-    x_vals = data['vipir_inversion_all_xvals'][-1]
-    z = data['vipir_inversion_z_node']
-    fvsO = data['vipir_inversion_fvsO']
-    vhsO = data['vipir_inversion_vhsO']
-    fvsX = data['vipir_inversion_fvsX']
-    vhsX = data['vipir_inversion_vhsX']
-    
-    fig_b.add_scatter(x=fps, y=Z, mode='lines', line=dict(color='darkgreen'), name='spline fp')
-    fig_b.add_scatter(x=x_vals, y=z, mode='markers', marker=dict(color='green', size=6), name='spline node')
-    fig_b.add_scatter(x=fvsO, y=vhsO, mode='lines', line=dict(color='red'), name='O-trace hv')
-    fig_b.add_scatter(x=fvsX, y=vhsX, mode='lines', line=dict(color='blue'), name='X-trace hv')
-    
-    fig_b.update_layout(
-        title="(b) Inversion Result", 
-        xaxis_title="Frequency (MHz)", 
-        yaxis_title="Virtual Height (km)", 
-        margin=dict(l=10, r=10, t=35, b=10), 
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor="rgba(255,255,255,0.7)")
-    )
-    # Force Plotly to respect the limits and act exactly like plt.xlim() and plt.ylim()
-    fig_b.update_xaxes(range=[freqs.min(), freqs.max()], autorange=False)
-    fig_b.update_yaxes(range=[hts.min(), hts.max()], autorange=False)
+    if 'b' in abc_panels:
+        col_idx = abc_panels.index('b') + 1
+        # Background grayscale ionogram
+        fig_abc.add_trace(
+            go.Heatmap(
+                z=intensity, x=freqs, y=hts,
+                colorscale='Greys', reversescale=True, zmin=10, zmax=70,
+                showscale=False,
+                name='Background', showlegend=False
+            ),
+            row=1, col=col_idx
+        )
+        # Overlay inversion traces
+        fps = data['vipir_inversion_fps']
+        Z = data['vipir_inversion_z_hts']
+        x_vals = data['vipir_inversion_all_xvals'][-1]
+        z = data['vipir_inversion_z_node']
+        fvsO = data['vipir_inversion_fvsO']
+        vhsO = data['vipir_inversion_vhsO']
+        fvsX = data['vipir_inversion_fvsX']
+        vhsX = data['vipir_inversion_vhsX']
+        
+        fig_abc.add_trace(go.Scatter(x=fps, y=Z, mode='lines', line=dict(color='darkgreen'), name='spline fp', legend='legend2'), row=1, col=col_idx)
+        fig_abc.add_trace(go.Scatter(x=x_vals, y=z, mode='markers', marker=dict(color='green', size=6), name='spline node', legend='legend2'), row=1, col=col_idx)
+        fig_abc.add_trace(go.Scatter(x=fvsO, y=vhsO, mode='lines', line=dict(color='red'), name='O-trace hv', legend='legend2'), row=1, col=col_idx)
+        fig_abc.add_trace(go.Scatter(x=fvsX, y=vhsX, mode='lines', line=dict(color='blue'), name='X-trace hv', legend='legend2'), row=1, col=col_idx)
     
     # (c) Thinned Traces
-    fig_c = px.imshow(intensity, x=freqs, y=hts, color_continuous_scale='gray_r', origin='lower', aspect='auto')
-    fig_c.update_coloraxes(cmin=10, cmax=70, colorbar=dict(thickness=10))
-    imgO = data['vipir_DNN_imgO']
-    imgX = data['vipir_DNN_imgX']
-    f_idx_o, f_mu_o, _, _ = filter_out_noise_peaks(imgO, freqs, np.array(data['vipir_thin_freqidx_o']), np.array(data['vipir_thin_mu_o']), np.array(data['vipir_thin_std_o']), np.array(data['vipir_thin_A_o']))
-    f_idx_x, f_mu_x, _, _ = filter_out_noise_peaks(imgX, freqs, np.array(data['vipir_thin_freqidx_x']), np.array(data['vipir_thin_mu_x']), np.array(data['vipir_thin_std_x']), np.array(data['vipir_thin_A_x']))
-    
-    scat_idx_x = np.append(np.arange(len(f_idx_x)//5)*5, -2)
-    idx_x_ints = np.round(f_idx_x[scat_idx_x]).astype(int)
-    mu_x_ints  = np.round(f_mu_x[scat_idx_x]).astype(int)
-    fig_c.add_scatter(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x', color='blue', size=6), name='X-mode')
-    
-    scat_idx_o = np.append(np.arange(len(f_idx_o)//5)*5, -2)
-    idx_o_ints = np.round(f_idx_o[scat_idx_o]).astype(int)
-    mu_o_ints  = np.round(f_mu_o[scat_idx_o]).astype(int)
-    fig_c.add_scatter(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='x', color='red', size=6), name='O-mode')
+    if 'c' in abc_panels:
+        col_idx = abc_panels.index('c') + 1
+        # Background grayscale ionogram
+        fig_abc.add_trace(
+            go.Heatmap(
+                z=intensity, x=freqs, y=hts,
+                colorscale='Greys', reversescale=True, zmin=10, zmax=70,
+                showscale=False,
+                name='Background', showlegend=False
+            ),
+            row=1, col=col_idx
+        )
+        # Overlay thinned traces
+        imgO = data['vipir_DNN_imgO']
+        imgX = data['vipir_DNN_imgX']
+        f_idx_o, f_mu_o, _, _ = filter_out_noise_peaks(imgO, freqs, np.array(data['vipir_thin_freqidx_o']), np.array(data['vipir_thin_mu_o']), np.array(data['vipir_thin_std_o']), np.array(data['vipir_thin_A_o']))
+        f_idx_x, f_mu_x, _, _ = filter_out_noise_peaks(imgX, freqs, np.array(data['vipir_thin_freqidx_x']), np.array(data['vipir_thin_mu_x']), np.array(data['vipir_thin_std_x']), np.array(data['vipir_thin_A_x']))
         
-    fig_c.update_layout(title="(c) Thinned Traces with GMM", xaxis_title="Frequency (MHz)", yaxis_title="Virtual Height (km)", margin=dict(l=10, r=10, t=35, b=10), legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor="rgba(255,255,255,0.7)"))
+        scat_idx_x = np.append(np.arange(len(f_idx_x)//5)*5, -2)
+        idx_x_ints = np.round(f_idx_x[scat_idx_x]).astype(int)
+        mu_x_ints  = np.round(f_mu_x[scat_idx_x]).astype(int)
+        fig_abc.add_trace(go.Scatter(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x', color='blue', size=6), name='X-mode', legend='legend3'), row=1, col=col_idx)
+        
+        scat_idx_o = np.append(np.arange(len(f_idx_o)//5)*5, -2)
+        idx_o_ints = np.round(f_idx_o[scat_idx_o]).astype(int)
+        mu_o_ints  = np.round(f_mu_o[scat_idx_o]).astype(int)
+        fig_abc.add_trace(go.Scatter(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='x', color='red', size=6), name='O-mode', legend='legend3'), row=1, col=col_idx)
     
-    # (d) Phase Result
+    # Position each legend over its corresponding subplot column
+    # Get the x-domain of each subplot to place legends correctly
+    legend_style = dict(yanchor="top", y=0.99, bgcolor="rgba(255,255,255,0.7)", font=dict(size=10))
+    
+    layout_update = dict(margin=dict(l=10, r=10, t=35, b=10))
+    
+    if 'b' in abc_panels:
+        b_col = abc_panels.index('b') + 1
+        # Get the x-domain start of subplot B's axis
+        xaxis_key = 'xaxis' if b_col == 1 else f'xaxis{b_col}'
+        b_domain = fig_abc.layout[xaxis_key].domain
+        layout_update['legend2'] = dict(**legend_style, xanchor="left", x=b_domain[0] + 0.01)
+    
+    if 'c' in abc_panels:
+        c_col = abc_panels.index('c') + 1
+        xaxis_key = 'xaxis' if c_col == 1 else f'xaxis{c_col}'
+        c_domain = fig_abc.layout[xaxis_key].domain
+        layout_update['legend3'] = dict(**legend_style, xanchor="left", x=c_domain[0] + 0.01)
+    
+    fig_abc.update_layout(**layout_update)
+    # Label axes - only first column gets y-axis label
+    fig_abc.update_yaxes(title_text="Virtual Height (km)", row=1, col=1)
+    for i in range(1, n_cols + 1):
+        fig_abc.update_xaxes(title_text="Frequency (MHz)", row=1, col=i)
+    # Link all x-axes to the first column's x-axis so zoom/pan syncs horizontally
+    # (shared_xaxes only works across rows, not columns in a single-row layout)
+    for i in range(2, n_cols + 1):
+        fig_abc.update_xaxes(matches='x', row=1, col=i)
+    
+    # (d) Phase Result — separate figure, different x-axis
     fig_d = go.Figure()
     phase_isr = data['valley_phase']
     phase_unwrapped = data['valley_phase_unwrapped']
@@ -264,12 +365,12 @@ def generate_all_plots(search_query):
     fig_d.update_layout(title="(d) ISR Phase Profile", xaxis_title="Phase (rad)", yaxis_title="Virtual Height (km)", 
                       xaxis_range=[-np.pi, np.pi], yaxis_range=[hts.min(), hts.max()], margin=dict(l=10, r=10, t=35, b=10), legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor="rgba(255,255,255,0.7)"))
 
-    return fig_a, fig_b, fig_c, fig_d
+    return fig_abc, fig_d
 
-# Callback 3: Update the Cross-Section Plot when clicking on Plot A
+# Callback 3: Update the Cross-Section Plot when clicking on the ABC subplot
 @callback(
     Output('cross-section-plot', 'figure'),
-    Input('plot-a-graph', 'clickData'),
+    Input('plot-abc-graph', 'clickData'),
     State('url', 'search'),
     prevent_initial_call=True
 )
