@@ -1,5 +1,5 @@
 import os
-from dash import Dash, html, dcc, Input, Output, State, no_update, callback, clientside_callback
+from dash import Dash, html, dcc, Input, Output, State, no_update, callback, clientside_callback, Patch, ctx
 import plotly.express as px
 import plotly.graph_objects as go
 import urllib.parse
@@ -158,6 +158,8 @@ clientside_callback(
     Input('plot-size-slider', 'value'),
     Input('plot-height-slider', 'value')
 )
+
+
 
 # Callback 2: Load Data & Generate Plots (Slow - Only runs ONCE on page load)
 @callback(
