@@ -492,18 +492,6 @@ def update_cross_section(clickData, search_query):
     )
 
     # Highlight the specific point that was clicked
-    
-        # Add a shaded region under the curve between X=10 and X=20
-    updated_cross_section_plot.add_vrect(
-        x0=10,                      # Start of the shaded region
-        x1=20,                      # End of the shaded region
-        fillcolor="LightSkyBlue",   # Color of the shade
-        opacity=0.3,                # Make it semi-transparent so you can see gridlines
-        layer="below",              # Push the shade *behind* the data line!
-        line_width=0                # Remove the border around the shaded box
-    )
-
-
     updated_cross_section_plot.add_scatter(
         x=[org[y_idx, x_idx]], 
         y=[click_y], 
@@ -521,6 +509,16 @@ def update_cross_section(clickData, search_query):
         margin=dict(l=40, r=40, t=50, b=40),
         legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.01, bgcolor="rgba(255,255,255,0.7)")
     )
+            # Add a shaded region under the curve between X=10 and X=20
+    updated_gmm_fit_O.add_vrect(
+        x0=80,                      # Start of the shaded region
+        x1=180,                      # End of the shaded region
+        fillcolor="LightSkyBlue",   # Color of the shade
+        opacity=0.3,                # Make it semi-transparent so you can see gridlines
+        layer="below",              # Push the shade *behind* the data line!
+        line_width=0                # Remove the border around the shaded box
+    )
+
 
     updated_gmm_fit_X = px.line(
         x=np.arange(20, hts.shape[0]),
