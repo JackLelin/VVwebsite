@@ -37,11 +37,15 @@ def filter_out_noise_peaks(img, freqs, idx, mu, std, A):
     return np.array(x_filtered), np.array(mu_filtered), np.array(std_filtered), np.array(A_filtered)
 
 # --- 3. Plot Functions & Config ---
-# Each plot function takes (fig, data, freqs, hts, intensity, col_idx, legend_name)
+# Each plot function takes (fig, data, col_idx, legend_name)
 # and adds its traces to the subplot at the given column.
+# Extract freqs, hts, intensity, etc. from `data` inside your function.
 
-def plot_original_ionogram(fig, data, freqs, hts, intensity, col_idx, legend_name):
+def plot_original_ionogram(fig, data, col_idx, legend_name):
     """(a) Original Ionogram — jet colorscale heatmap."""
+    freqs = data['vipir_freqs']
+    hts = data['vipir_hts']
+    intensity = 10 * np.log10(data['vipir_original'] + 1)
     # Position colorbar at the right edge of this subplot's domain
     xaxis_key = 'xaxis' if col_idx == 1 else f'xaxis{col_idx}'
     domain_end = fig.layout[xaxis_key].domain[1]
@@ -55,8 +59,11 @@ def plot_original_ionogram(fig, data, freqs, hts, intensity, col_idx, legend_nam
         row=1, col=col_idx
     )
 
-def plot_inversion_result(fig, data, freqs, hts, intensity, col_idx, legend_name):
+def plot_inversion_result(fig, data, col_idx, legend_name):
     """(b) Inversion Result — grayscale background + inversion overlay traces."""
+    freqs = data['vipir_freqs']
+    hts = data['vipir_hts']
+    intensity = 10 * np.log10(data['vipir_original'] + 1)
     fig.add_trace(
         go.Heatmap(
             z=intensity, x=freqs, y=hts,
@@ -80,8 +87,25 @@ def plot_inversion_result(fig, data, freqs, hts, intensity, col_idx, legend_name
     fig.add_trace(go.Scatter(x=fvsO, y=vhsO, mode='lines', line=dict(color='red'), name='O-trace hv', legend=legend_name), row=1, col=col_idx)
     fig.add_trace(go.Scatter(x=fvsX, y=vhsX, mode='lines', line=dict(color='blue'), name='X-trace hv', legend=legend_name), row=1, col=col_idx)
 
-def plot_thinned_traces(fig, data, freqs, hts, intensity, col_idx, legend_name):
+    imgO = data['vipir_DNN_imgO']
+    imgX = data['vipir_DNN_imgX']
+    f_idx_o, f_mu_o, _, _ = filter_out_noise_peaks(imgO, freqs, np.array(data['vipir_thin_freqidx_o']), np.array(data['vipir_thin_mu_o']), np.array(data['vipir_thin_std_o']), np.array(data['vipir_thin_A_o']))
+    f_idx_x, f_mu_x, _, _ = filter_out_noise_peaks(imgX, freqs, np.array(data['vipir_thin_freqidx_x']), np.array(data['vipir_thin_mu_x']), np.array(data['vipir_thin_std_x']), np.array(data['vipir_thin_A_x']))
+    
+    idx_x_ints = np.round(f_idx_x).astype(int)
+    mu_x_ints  = np.round(f_mu_x).astype(int)
+    fig.add_trace(go.Scatter(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x-thin', size=7, line=dict(width=1.5, color='blue')), name='X-mode peak', legend=legend_name), row=1, col=col_idx)
+    
+    idx_o_ints = np.round(f_idx_o).astype(int)
+    mu_o_ints  = np.round(f_mu_o).astype(int)
+    fig.add_trace(go.Scatter(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='x-thin', size=7, line=dict(width=1.5, color='red')), name='O-mode peak', legend=legend_name), row=1, col=col_idx)
+
+
+def plot_thinned_traces(fig, data, col_idx, legend_name):
     """(c) Thinned Traces — grayscale background + GMM scatter overlay."""
+    freqs = data['vipir_freqs']
+    hts = data['vipir_hts']
+    intensity = 10 * np.log10(data['vipir_original'] + 1)
     fig.add_trace(
         go.Heatmap(
             z=intensity, x=freqs, y=hts,
@@ -104,11 +128,110 @@ def plot_thinned_traces(fig, data, freqs, hts, intensity, col_idx, legend_name):
     mu_o_ints  = np.round(f_mu_o).astype(int)
     fig.add_trace(go.Scatter(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='x', color='red', size=6), name='O-mode', legend=legend_name), row=1, col=col_idx)
 
+def plot_segmented_mask(fig, data, col_idx, legend_name):
+    """Plotting segmented mask from T-UNet o-mode and x-mode"""
+    freqs = data['vipir_freqs']
+    hts   = data['vipir_hts']
+    binary_ionogram = data['vipir_binary_ionogram'].astype(np.int_)
+    maskO = data['vipir_DNN_imgO']
+    maskX = data['vipir_DNN_imgX']
+    # 1. Background heatmap
+    fig.add_trace(
+        go.Heatmap(
+            z=binary_ionogram, x=freqs, y=hts,
+            colorscale='Greys', reversescale=True, zmin=0, zmax=1,
+            showscale=False, name='Background', showlegend=False, legend=legend_name
+        ),
+        row=1, col=col_idx
+    )
+    # Define custom colorscales for transparency                               
+    # [0, 'rgba(r,g,b,alpha)'] -> 0 is transparent                             
+    # [1, 'rgba(r,g,b,alpha)'] -> 1 is opaque                                  
+    red_mask_scale = [[0, 'rgba(255,0,0,0)'], [1, 'rgba(255,0,0,1)']]          
+    blue_mask_scale = [[0, 'rgba(0,0,255,0)'], [1, 'rgba(0,0,255,1)']]       
+    fig.add_trace(
+        go.Heatmap(
+            z=maskO, x=freqs, y=hts,
+            colorscale=red_mask_scale, zmin=0, zmax=1, opacity=0.5,
+            showscale=False, name='O-mode', showlegend=True, legend=legend_name
+        ),
+        row=1, col=col_idx
+    )
+    fig.add_trace(
+        go.Heatmap(
+            z=maskX, x=freqs, y=hts,
+            colorscale=blue_mask_scale, zmin=0, zmax=1, opacity=0.5,
+            showscale=False, name='X-mode', showlegend=True, legend=legend_name
+        ),
+        row=1, col=col_idx
+    )
+
+    
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TEMPLATE: How to add a new plot panel
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Step 1: Define your plot function below (copy this template and modify).
+# Step 2: Add an entry to PLOT_CONFIG at the bottom of this section.
+#         That's it — the layout, toggles, legends, and axis sync are automatic.
+#
+# FUNCTION SIGNATURE:
+#   def plot_my_panel(fig, data, col_idx, legend_name):
+#
+# PARAMETERS (all provided automatically by the main loop):
+#   fig         : the make_subplots Figure — call fig.add_trace(..., row=1, col=col_idx)
+#   data        : the full .npy dict — access any key like data['my_key']
+#                 Common keys: data['vipir_freqs'], data['vipir_hts'], data['vipir_original']
+#   col_idx     : which subplot column this panel occupies (1-indexed)
+#   legend_name : string like 'legend', 'legend2', etc. — pass to scatter traces
+#
+# RULES:
+#   - Extract freqs/hts/intensity from data inside your function
+#   - Heatmaps: set showlegend=False (they use colorbars, not legends)
+#   - Scatter/Line traces: set legend=legend_name so they appear in this panel's legend
+#   - Always use row=1, col=col_idx when adding traces
+#
+# ─── Example: Heatmap background + scatter overlay (like panels b, c) ────────
+#
+# def plot_my_overlay(fig, data, col_idx, legend_name):
+#     """My custom overlay panel."""
+#     freqs = data['vipir_freqs']
+#     hts   = data['vipir_hts']
+#     intensity = 10 * np.log10(data['vipir_original'] + 1)
+#     # 1. Background heatmap
+#     fig.add_trace(
+#         go.Heatmap(
+#             z=intensity, x=freqs, y=hts,
+#             colorscale='Greys', reversescale=True, zmin=10, zmax=70,
+#             showscale=False, name='Background', showlegend=False
+#         ),
+#         row=1, col=col_idx
+#     )
+#     # 2. Overlay scatter/line traces (use legend=legend_name!)
+#     x_data = data['my_x_key']
+#     y_data = data['my_y_key']
+#     fig.add_trace(
+#         go.Scatter(
+#             x=x_data, y=y_data,
+#             mode='lines+markers',    # or 'lines', 'markers'
+#             line=dict(color='red'),
+#             marker=dict(size=5),
+#             name='My Trace',
+#             legend=legend_name       # <-- puts it in this panel's legend
+#         ),
+#         row=1, col=col_idx
+#     )
+#
+# ═══════════════════════════════════════════════════════════════════════════════
 
 PLOT_CONFIG = [
-    {'id': 'a', 'label': '(a) Original Ionogram',  'plot_func': plot_original_ionogram},
-    {'id': 'b', 'label': '(b) Inversion Result',    'plot_func': plot_inversion_result},
-    {'id': 'c', 'label': '(c) Thinned Traces',      'plot_func': plot_thinned_traces}
+    {'id': 'a', 'label': 'Original Ionogram',  'plot_func': plot_original_ionogram},
+    {'id': 'b', 'label': 'Inversion Result',    'plot_func': plot_inversion_result},
+    # {'id': 'c', 'label': 'Thinned Traces',      'plot_func': plot_thinned_traces},
+    {'id': 'd', 'label': 'Segmented Mask',      'plot_func': plot_segmented_mask},
+    # --- To add a new panel, uncomment and modify: ---
+    # {'id': 'd', 'label': '(d) My New Panel',      'plot_func': plot_my_heatmap},
 ]
 
 def serve_layout():
@@ -130,6 +253,10 @@ def serve_layout():
             ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '8px 15px', 'backgroundColor': '#f9f9f9', 'borderRadius': '8px', 'width': 'max-content', 'margin': '0 auto 10px auto'}),
             
             html.Div([
+                html.Button('Reset Axes', id='reset-view-btn', n_clicks=0,
+                    style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
+                           'cursor': 'pointer', 'borderRadius': '6px', 'border': '1px solid #aaa',
+                           'backgroundColor': '#f0f0f0', 'marginRight': '20px', 'fontWeight': 'bold'}),
                 html.Span("Plot Width:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
                 html.Div(
                     dcc.Slider(
@@ -160,7 +287,7 @@ def serve_layout():
                     dcc.Graph(
                         id='plot-abc-graph', 
                         style={'width': '100%', 'height': '100%'},
-                        config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
+                        config={'doubleClick': False, 'scrollZoom': True, 'modeBarButtonsToRemove': ['autoScale2d']}
                     ), 
                     id='plot-abc-wrapper', 
                     style={'display': 'block', 'flexShrink': 0}
@@ -221,13 +348,14 @@ clientside_callback(
 )
 
 
-# Callback 2: Load Data & Generate Plots (Only runs ONCE on page load or when toggles change)
+# Callback 2: Load Data & Generate Plots (runs on page load, toggle change, or reset)
 @callback(
     Output('plot-abc-graph', 'figure'),
     Input('url', 'search'),
-    Input('plot-toggles', 'value')
+    Input('plot-toggles', 'value'),
+    Input('reset-view-btn', 'n_clicks')
 )
-def generate_all_plots(search_query, selected_panels):
+def generate_all_plots(search_query, selected_panels, reset_clicks):
     empty_abc = make_subplots(rows=1, cols=1).update_layout(title="No data loaded")
     
     if not search_query:
@@ -248,10 +376,8 @@ def generate_all_plots(search_query, selected_panels):
     data = np.load(filepath, allow_pickle=True)[()]
     freqs = data['vipir_freqs']
     hts = data['vipir_hts']
-    org = data['vipir_original']
-    intensity = 10 * np.log10(org + 1)
     
-    # --- Determine which ABC panels are visible ---
+    # --- Determine which panels are visible ---
     abc_panels = [p['id'] for p in PLOT_CONFIG if p['id'] in selected_panels]
     n_cols = len(abc_panels) if abc_panels else 1
     
@@ -278,11 +404,11 @@ def generate_all_plots(search_query, selected_panels):
     
     for col_idx, panel_id in enumerate(abc_panels, start=1):
         # Each column gets its own legend: legend, legend2, legend3, ...
-        legend_name = 'legend' if col_idx == 1 else f'legend{col_idx}'
-        config_map[panel_id]['plot_func'](fig_abc, data, freqs, hts, intensity, col_idx, legend_name)
+        legend_name = f'legend{col_idx}'
+        config_map[panel_id]['plot_func'](fig_abc, data, col_idx, legend_name)
         
         # Position this column's legend over its subplot domain
-        xaxis_key = 'xaxis' if col_idx == 1 else f'xaxis{col_idx}'
+        xaxis_key = f'xaxis{col_idx}'
         domain = fig_abc.layout[xaxis_key].domain
         layout_update[legend_name] = dict(**legend_style, xanchor="left", x=domain[0] + 0.01)
     
@@ -295,8 +421,12 @@ def generate_all_plots(search_query, selected_panels):
     # (shared_xaxes only works across rows, not columns in a single-row layout)
     for i in range(2, n_cols + 1):
         fig_abc.update_xaxes(matches='x', row=1, col=i)
+    # Set explicit axis limits (propagates to all subplots via shared/matched axes)
+    fig_abc.update_xaxes(range=[freqs.min(), freqs.max()], autorange=False, row=1, col=1)
+    fig_abc.update_yaxes(range=[hts.min(), hts.max()], autorange=False, row=1, col=1)
     
     return fig_abc
+
 
 # Callback 3: Update the Cross-Section Plot when clicking on the ABC subplot
 @callback(
@@ -324,7 +454,7 @@ def update_cross_section(clickData, search_query):
     hts = data['vipir_hts']
     freqs = data['vipir_freqs']
     org = data['vipir_original']
-    intensity = 10 * np.log10(org + 1)
+    # intensity = 10 * np.log10(org + 1)
     
     # In Plotly, the clicked x/y values match the coordinates we provided (freqs and hts)
     click_x = clickData['points'][0]['x'] 
@@ -332,24 +462,25 @@ def update_cross_section(clickData, search_query):
     
     # Find the closest frequency index to the clicked x-coordinate (Vertical Cross-Section)
     x_idx = np.argmin(np.abs(freqs - click_x))
-    col_data = intensity[:, x_idx]
+    y_idx = np.argmin(np.abs(hts - click_y))
+    col_data = org[:, x_idx]
     
     # Plot the 1D vertical cross-section across all heights at that specific frequency
     # We plot Intensity (dB) on the X-axis and Virtual Height (km) on the Y-axis
     updated_cross_section_plot = px.line(
-        x=col_data, 
-        y=hts,
-        title=f"Vertical Profile at {freqs[x_idx]:.2f} MHz",
-        labels={'x': 'Intensity (dB)', 'y': 'Virtual Height (km)'}
+        x=col_data[20:], 
+        y=hts[20:],
+        title=f"Power Profile at {freqs[x_idx]:.2f} MHz",
+        labels={'x': 'Power (linear)', 'y': 'Virtual Height (km)'}
     ).update_layout(
         margin=dict(l=40, r=40, t=50, b=40),
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor="rgba(255,255,255,0.7)")
+        legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.01, bgcolor="rgba(255,255,255,0.7)")
     )
 
     # Highlight the specific point that was clicked
-    y_idx = np.argmin(np.abs(hts - click_y))
+    
     updated_cross_section_plot.add_scatter(
-        x=[intensity[y_idx, x_idx]], 
+        x=[org[y_idx, x_idx]], 
         y=[click_y], 
         mode='markers', 
         marker=dict(color='red', size=12), 
