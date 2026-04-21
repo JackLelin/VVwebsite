@@ -311,7 +311,19 @@ def serve_layout():
             dcc.Graph(
                 id='cross-section-plot',
                 figure=go.Figure().update_layout(title="Click on the (a) Original Ionogram to see cross-section", margin=dict(l=40, r=40, t=50, b=40)),
-                style={'width': '100%', 'height': '400px'}, # Fixed height for column stack
+                style={'width': '100%', 'height': '300px'}, # Fixed height for column stack
+                config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
+            ),
+            dcc.Graph(
+                id='gmm-fit-O',
+                figure=go.Figure().update_layout(title="GMM Fit", margin=dict(l=40, r=40, t=50, b=40)),
+                style={'width': '100%', 'height': '300px'}, # Fixed height for column stack
+                config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
+            ),
+            dcc.Graph(
+                id='gmm-fit-X',
+                figure=go.Figure().update_layout(title="GMM Fit", margin=dict(l=40, r=40, t=50, b=40)),
+                style={'width': '100%', 'height': '300px'}, # Fixed height for column stack
                 config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
             )
             # More plots can be added here easily in a column!
@@ -431,6 +443,8 @@ def generate_all_plots(search_query, selected_panels, reset_clicks):
 # Callback 3: Update the Cross-Section Plot when clicking on the ABC subplot
 @callback(
     Output('cross-section-plot', 'figure'),
+    Output('gmm-fit-O', 'figure'),
+    Output('gmm-fit-X', 'figure'),
     Input('plot-abc-graph', 'clickData'),
     State('url', 'search'),
     prevent_initial_call=True
@@ -479,6 +493,17 @@ def update_cross_section(clickData, search_query):
 
     # Highlight the specific point that was clicked
     
+        # Add a shaded region under the curve between X=10 and X=20
+    updated_cross_section_plot.add_vrect(
+        x0=10,                      # Start of the shaded region
+        x1=20,                      # End of the shaded region
+        fillcolor="LightSkyBlue",   # Color of the shade
+        opacity=0.3,                # Make it semi-transparent so you can see gridlines
+        layer="below",              # Push the shade *behind* the data line!
+        line_width=0                # Remove the border around the shaded box
+    )
+
+
     updated_cross_section_plot.add_scatter(
         x=[org[y_idx, x_idx]], 
         y=[click_y], 
@@ -486,5 +511,25 @@ def update_cross_section(clickData, search_query):
         marker=dict(color='red', size=12), 
         name='Clicked Point'
     )
+
+    updated_gmm_fit_O = px.line(
+        x=np.arange(20, hts.shape[0]),
+        y=col_data[20:], 
+        title=f"Power Profile at {freqs[x_idx]:.2f} MHz",
+        labels={'x': 'Height Index', 'y': 'Power (linear)'}
+    ).update_layout(
+        margin=dict(l=40, r=40, t=50, b=40),
+        legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.01, bgcolor="rgba(255,255,255,0.7)")
+    )
+
+    updated_gmm_fit_X = px.line(
+        x=np.arange(20, hts.shape[0]),
+        y=col_data[20:], 
+        title=f"Power Profile at {freqs[x_idx]:.2f} MHz",
+        labels={'x': 'Height Index', 'y': 'Power (linear)'}
+    ).update_layout(
+        margin=dict(l=40, r=40, t=50, b=40),
+        legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.01, bgcolor="rgba(255,255,255,0.7)")
+    )
     
-    return updated_cross_section_plot
+    return updated_cross_section_plot, updated_gmm_fit_O, updated_gmm_fit_X
