@@ -41,17 +41,14 @@ def filter_out_noise_peaks(img, freqs, idx, mu, std, A):
 PLOT_CONFIG = [
     {'id': 'a', 'label': '(a) Original Ionogram'},
     {'id': 'b', 'label': '(b) Inversion Result'},
-    {'id': 'c', 'label': '(c) Thinned Traces'},
-    {'id': 'd', 'label': '(d) ISR Phase Profile'}
+    {'id': 'c', 'label': '(c) Thinned Traces'}
 ]
 
 def serve_layout():
     return html.Div([
         # LEFT PANE (75%)
         html.Div([
-            html.H1("Detailed Plot Dashboard", style={'textAlign': 'center', 'fontFamily': 'sans-serif'}),
-            html.P("Select panels to display corresponding to the data.", 
-                   style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'color': 'gray'}),
+            html.H3("Detailed Plot Dashboard", style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'margin': '5px 0 5px 0'}),
             
             html.Div([
                 html.Span("Select Panels to Display:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
@@ -70,7 +67,7 @@ def serve_layout():
                 html.Div(
                     dcc.Slider(
                         id='plot-size-slider',
-                        min=200, max=1000, step=50, value=400,
+                        min=200, max=1000, step=50, value=500,
                         marks=None,
                         tooltip={"placement": "bottom", "always_visible": True},
                         updatemode='mouseup'
@@ -81,7 +78,7 @@ def serve_layout():
                 html.Div(
                     dcc.Slider(
                         id='plot-height-slider',
-                        min=200, max=1000, step=50, value=500,
+                        min=200, max=1000, step=50, value=600,
                         marks=None,
                         tooltip={"placement": "bottom", "always_visible": True},
                         updatemode='mouseup'
@@ -90,7 +87,7 @@ def serve_layout():
                 )
             ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '5px 15px', 'width': 'max-content', 'margin': '0 auto 20px auto'}),
             
-            # Container for plots — ABC are a single synced subplot figure, D is separate
+            # Container for the synced ABC subplot figure
             html.Div([
                 html.Div(
                     dcc.Graph(
@@ -100,15 +97,6 @@ def serve_layout():
                     ), 
                     id='plot-abc-wrapper', 
                     style={'display': 'block', 'flexShrink': 0}
-                ),
-                html.Div(
-                    dcc.Graph(
-                        id='plot-d-graph', 
-                        style={'width': '100%', 'height': '100%'},
-                        config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
-                    ), 
-                    id='plot-d-wrapper', 
-                    style={'display': 'none'}
                 ),
             ],
                 id='left-plots-container',
@@ -140,48 +128,26 @@ def serve_layout():
 # --- 4. Callbacks ---
 
 # Callback 1: Toggle visibility & resize (Client-Side Javascript - No server roundtrip)
-# ABC panels control column visibility in the subplot; D wrapper is shown/hidden directly.
 clientside_callback(
     """
     function(selected_panels, width, height) {
-        // ABC wrapper: show if any of a, b, c is selected
         var abcPanels = ['a', 'b', 'c'];
         var anyABC = abcPanels.some(function(p) { return selected_panels.includes(p); });
-        
-        // Count how many ABC panels are visible to calculate total width
         var abcCount = abcPanels.filter(function(p) { return selected_panels.includes(p); }).length;
         
-        var abcStyle;
         if (anyABC) {
-            abcStyle = {
+            return {
                 'display': 'block',
                 'width': (width * abcCount) + 'px',
                 'height': height + 'px',
                 'flexShrink': 0
             };
         } else {
-            abcStyle = {'display': 'none'};
+            return {'display': 'none'};
         }
-        
-        var dStyle;
-        if (selected_panels.includes('d')) {
-            dStyle = {
-                'display': 'block',
-                'width': width + 'px',
-                'height': height + 'px',
-                'border': '1px dashed #aaa',
-                'marginRight': '10px',
-                'flexShrink': 0
-            };
-        } else {
-            dStyle = {'display': 'none'};
-        }
-        
-        return [abcStyle, dStyle];
     }
     """,
     Output('plot-abc-wrapper', 'style'),
-    Output('plot-d-wrapper', 'style'),
     Input('plot-toggles', 'value'),
     Input('plot-size-slider', 'value'),
     Input('plot-height-slider', 'value')
@@ -191,27 +157,25 @@ clientside_callback(
 # Callback 2: Load Data & Generate Plots (Only runs ONCE on page load or when toggles change)
 @callback(
     Output('plot-abc-graph', 'figure'),
-    Output('plot-d-graph', 'figure'),
     Input('url', 'search'),
     Input('plot-toggles', 'value')
 )
 def generate_all_plots(search_query, selected_panels):
     empty_abc = make_subplots(rows=1, cols=1).update_layout(title="No data loaded")
-    empty_d = go.Figure().update_layout(title="No data loaded")
     
     if not search_query:
-        return empty_abc, empty_d
+        return empty_abc
         
     parsed = urllib.parse.parse_qs(search_query.lstrip('?'))
     if 'image' not in parsed:
-        return empty_abc, empty_d
+        return empty_abc
         
     filename = parsed['image'][0]
     npy_filename = filename.replace('.png', '.npy')
     filepath = os.path.join(consolidate_dir, npy_filename)
     
     if not os.path.exists(filepath):
-        return empty_abc, empty_d
+        return empty_abc
         
     # Load data ONCE
     data = np.load(filepath, allow_pickle=True)[()]
@@ -308,21 +272,21 @@ def generate_all_plots(search_query, selected_panels):
         f_idx_o, f_mu_o, _, _ = filter_out_noise_peaks(imgO, freqs, np.array(data['vipir_thin_freqidx_o']), np.array(data['vipir_thin_mu_o']), np.array(data['vipir_thin_std_o']), np.array(data['vipir_thin_A_o']))
         f_idx_x, f_mu_x, _, _ = filter_out_noise_peaks(imgX, freqs, np.array(data['vipir_thin_freqidx_x']), np.array(data['vipir_thin_mu_x']), np.array(data['vipir_thin_std_x']), np.array(data['vipir_thin_A_x']))
         
-        scat_idx_x = np.append(np.arange(len(f_idx_x)//5)*5, -2)
-        idx_x_ints = np.round(f_idx_x[scat_idx_x]).astype(int)
-        mu_x_ints  = np.round(f_mu_x[scat_idx_x]).astype(int)
+        # scat_idx_x = np.append(np.arange(len(f_idx_x)//5)*5, -2)
+        idx_x_ints = np.round(f_idx_x).astype(int)
+        mu_x_ints  = np.round(f_mu_x).astype(int)
         fig_abc.add_trace(go.Scatter(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x', color='blue', size=6), name='X-mode', legend='legend3'), row=1, col=col_idx)
         
-        scat_idx_o = np.append(np.arange(len(f_idx_o)//5)*5, -2)
-        idx_o_ints = np.round(f_idx_o[scat_idx_o]).astype(int)
-        mu_o_ints  = np.round(f_mu_o[scat_idx_o]).astype(int)
+        # scat_idx_o = np.append(np.arange(len(f_idx_o)//5)*5, -2)
+        idx_o_ints = np.round(f_idx_o).astype(int)
+        mu_o_ints  = np.round(f_mu_o).astype(int)
         fig_abc.add_trace(go.Scatter(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='x', color='red', size=6), name='O-mode', legend='legend3'), row=1, col=col_idx)
     
     # Position each legend over its corresponding subplot column
     # Get the x-domain of each subplot to place legends correctly
     legend_style = dict(yanchor="top", y=0.99, bgcolor="rgba(255,255,255,0.7)", font=dict(size=10))
     
-    layout_update = dict(margin=dict(l=10, r=10, t=35, b=10))
+    layout_update = dict(margin=dict(l=10, r=10, t=60, b=10))
     
     if 'b' in abc_panels:
         b_col = abc_panels.index('b') + 1
@@ -347,25 +311,7 @@ def generate_all_plots(search_query, selected_panels):
     for i in range(2, n_cols + 1):
         fig_abc.update_xaxes(matches='x', row=1, col=i)
     
-    # (d) Phase Result — separate figure, different x-axis
-    fig_d = go.Figure()
-    phase_isr = data['valley_phase']
-    phase_unwrapped = data['valley_phase_unwrapped']
-    best_channel_idx = data['valley_phase_bestchannel'] 
-    p_sim = data['vipir_inversion_phase_sim']
-    valleyz = data.get('valley_z', np.linspace(hts.min(), hts.max(), len(p_sim)))
-    offset3 = np.mean(phase_unwrapped[best_channel_idx][200:] - p_sim[200:])
-    fig_d.add_scatter(x=p_sim + offset3 + 2*np.pi, y=valleyz, mode='lines', line=dict(color='red'), showlegend=False)
-    fig_d.add_scatter(x=p_sim + offset3, y=valleyz, mode='lines', line=dict(color='red'), name='Predicted Phase')
-    fig_d.add_scatter(x=p_sim + offset3 - 2*np.pi, y=valleyz, mode='lines', line=dict(color='red'), showlegend=False)
-    fig_d.add_scatter(x=phase_isr[best_channel_idx], y=valleyz, mode='markers', marker=dict(color='blue', size=4), name='ISR Phase')
-    fig_d.add_scatter(x=phase_isr[best_channel_idx]+2*np.pi, y=valleyz, mode='markers', marker=dict(color='blue', size=4), showlegend=False)
-    fig_d.add_scatter(x=phase_isr[best_channel_idx]-2*np.pi, y=valleyz, mode='markers', marker=dict(color='blue', size=4), showlegend=False)
-    fig_d.add_hrect(y0=valleyz.min(), y1=valleyz.max(), fillcolor="gray", opacity=0.2, line_width=0, name="ISR range")
-    fig_d.update_layout(title="(d) ISR Phase Profile", xaxis_title="Phase (rad)", yaxis_title="Virtual Height (km)", 
-                      xaxis_range=[-np.pi, np.pi], yaxis_range=[hts.min(), hts.max()], margin=dict(l=10, r=10, t=35, b=10), legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor="rgba(255,255,255,0.7)"))
-
-    return fig_abc, fig_d
+    return fig_abc
 
 # Callback 3: Update the Cross-Section Plot when clicking on the ABC subplot
 @callback(
