@@ -492,55 +492,6 @@ def update_cross_section(clickData, search_query):
     y_idx = np.argmin(np.abs(hts - click_y))
     col_data = org[:, x_idx]
     
-    # Plot the 1D vertical cross-section across all heights at that specific frequency
-    # We plot Intensity (dB) on the X-axis and Virtual Height (km) on the Y-axis
-    # updated_cross_section_plot = px.line(
-    #     x=col_data[20:], 
-    #     y=hts[20:],
-    #     title=f"Power Profile at {freqs[x_idx]:.2f} MHz",
-    #     labels={'x': 'Power (linear)', 'y': 'Virtual Height (km)'}
-    # ).update_layout(
-    #     margin=dict(l=40, r=40, t=50, b=40),
-    #     legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.01, bgcolor="rgba(255,255,255,0.7)")
-    # )
-
-    # # Highlight the specific point that was clicked
-    # updated_cross_section_plot.add_scatter(
-    #     x=[org[y_idx, x_idx]], 
-    #     y=[click_y], 
-    #     mode='markers', 
-    #     marker=dict(color='red', size=12), 
-    #     name='Clicked Point'
-    # )
-
-    # updated_gmm_fit_O = px.line(
-    #     x=np.arange(20, hts.shape[0]),
-    #     y=col_data[20:], 
-    #     title=f"Power Profile at {freqs[x_idx]:.2f} MHz",
-    #     labels={'x': 'Height Index', 'y': 'Power (linear)'}
-    # ).update_layout(
-    #     margin=dict(l=40, r=40, t=50, b=40),
-    #     legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.01, bgcolor="rgba(255,255,255,0.7)")
-    # )
-    #         # Add a shaded region under the curve between X=10 and X=20
-    # updated_gmm_fit_O.add_vrect(
-    #     x0=80,                      # Start of the shaded region
-    #     x1=180,                      # End of the shaded region
-    #     fillcolor="LightSkyBlue",   # Color of the shade
-    #     opacity=0.3,                # Make it semi-transparent so you can see gridlines
-    #     layer="below",              # Push the shade *behind* the data line!
-    #     line_width=0                # Remove the border around the shaded box
-    # )
-
-    # updated_gmm_fit_X = px.line(
-    #     x=np.arange(20, hts.shape[0]),
-    #     y=col_data[20:], 
-    #     title=f"Power Profile at {freqs[x_idx]:.2f} MHz",
-    #     labels={'x': 'Height Index', 'y': 'Power (linear)'}
-    # ).update_layout(
-    #     margin=dict(l=40, r=40, t=50, b=40),
-    #     legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.01, bgcolor="rgba(255,255,255,0.7)")
-    # )
     
     row_titles = [f'Power Profile at {freqs[x_idx]:.2f} MHz', 'O-mode GMM fit', 'X-mode GMM fit']
     updated_plot= make_subplots(
@@ -550,62 +501,45 @@ def update_cross_section(clickData, search_query):
         vertical_spacing=0.1
     )
 
-# 1. Add traces with specific legend assignments
     updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], 
-                   mode='lines', name='Row 1 Trace', legend='legend1'),
+        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='blue'), name='X-trace hv', legend='legend1'),
         row=1, col=1
     )
 
     updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], 
-                   mode='lines', name='Row 2 Trace', legend='legend2'),
+        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='blue'), name='X-trace hv', legend='legend2'),
         row=2, col=1
     )
 
+    updated_plot.add_vrect(
+        x0=80,                       # Start of the shaded region
+        x1=180,                      # End of the shaded region
+        fillcolor="LightSkyBlue",    # Color of the shade
+        opacity=0.3,                 # Make it semi-transparent
+        layer="below",               # Push the shade *behind* the data line
+        line_width=0,                # Remove the border around the shaded box
+        row=2,                       # Specify the exact row!
+        col=1                        # Specify the column
+    )
+
     updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], 
-                   mode='lines', name='Row 3 Trace', legend='legend3'),
+        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='blue'), name='X-trace hv', legend='legend3'),
         row=3, col=1
     )
 
-    # 2. Configure the layout for multiple legends
-    # Note: 'legend' (no number) is the same as 'legend1'
-    legend_style = dict(
-        yanchor="top", 
-        xanchor="left", 
-        x=0.02, 
-        bgcolor="rgba(255,255,255,0.7)", 
-        font=dict(size=10)
-    )
+    legend_style = dict(yanchor="top",xanchor="left", x=0.02, bgcolor="rgba(255,255,255,0.7)", font=dict(size=10))
+    layout_update = dict(margin=dict(l=10, r=10, t=60, b=10), showlegend=True, 
+        plot_bgcolor='white',
+        paper_bgcolor='white')
 
-    # Create a dictionary to hold all legend configs
-    new_layout_settings = dict(
-        margin=dict(l=10, r=10, t=60, b=10),
-        showlegend=True
-    )
+    for i_row in range(1, 4):
+        b_domain = updated_plot.layout[f'yaxis{i_row}'].domain
+        layout_update[f'legend{i_row}'] = dict(**legend_style, y=b_domain[1] - 0.01)
+    
+    updated_plot.update_layout(**layout_update)
 
-    for i in range(1, 4):
-        # Access the domain of the y-axis for the current row
-        # Row 1 is usually 'yaxis', Row 2 is 'yaxis2', etc.
-        axis_key = f'yaxis{i}'
-        domain = updated_plot.layout[axis_key].domain
-        
-        # Position the legend at the top of that specific subplot's domain
-        legend_key = f'legend{i}'
-        new_layout_settings[legend_key] = dict(
-            **legend_style,
-            y=domain[1] - 0.01  # domain[1] is the top of the subplot
-        )
-
-    # Apply all settings at once
-    updated_plot.update_layout(**new_layout_settings)
-
-    # Update axes titles
-    for i in range(1, 4):
-        updated_plot.update_xaxes(title_text="Height Index", row=i, col=1)
-        updated_plot.update_yaxes(title_text="Power (linear)", row=i, col=1)
+    for i_row in range(1, 4):
+        updated_plot.update_xaxes(title_text="Height Index", row=i_row, col=1, gridcolor='lightgrey')
+        updated_plot.update_yaxes(title_text="Power (linear)", row=i_row, col=1, gridcolor='lightgrey')
 
     return updated_plot
-
-    
