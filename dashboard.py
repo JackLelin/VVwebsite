@@ -453,11 +453,16 @@ def generate_all_plots(search_query, selected_panels, reset_clicks):
     return fig_abc
 
 
+def get_mask_intervals(col_mask):                                                                                                                                                                                              
+    # Find where the value changes                                                      
+    diff = np.diff(col_mask.astype(int), prepend=0, append=0)                               
+    starts = (np.where(diff == 1)[0]).reshape(-1,1)                                         
+    ends = (np.where(diff == -1)[0]).reshape(-1,1) - 1                                                  
+    return np.hstack([starts, ends])
+
 # Callback 3: Update the Cross-Section Plot when clicking on the ABC subplot
 @callback(
     Output('cross-section-plot', 'figure'),
-    # Output('gmm-fit-O', 'figure'),
-    # Output('gmm-fit-X', 'figure'),
     Input('plot-abc-graph', 'clickData'),
     State('url', 'search'),
     prevent_initial_call=True
@@ -481,6 +486,8 @@ def update_cross_section(clickData, search_query):
     hts = data['vipir_hts']
     freqs = data['vipir_freqs']
     org = data['vipir_original']
+    maskO = data['vipir_DNN_imgO']
+    maskX = data['vipir_DNN_imgX']
     # intensity = 10 * np.log10(org + 1)
     
     # In Plotly, the clicked x/y values match the coordinates we provided (freqs and hts)
@@ -502,28 +509,57 @@ def update_cross_section(clickData, search_query):
     )
 
     updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='blue'), name='X-trace hv', legend='legend1'),
+        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='black'), name='X-trace hv', legend='legend1'),
+        row=1, col=1
+    )
+    updated_plot.add_trace(
+        go.Scatter(x=[y_idx], y=[org[y_idx, x_idx]], mode='markers', marker=dict(color='red', size=8), name='Clicked Point', legend='legend1'),
+        row=1, col=1
+    )
+
+    intervals = get_mask_intervals(maskO[:, x_idx])                                                    
+    for i_interv in range(intervals.shape[0]):
+        updated_plot.add_vrect(
+            x0=intervals[i_interv,0], x1=intervals[i_interv,1], 
+            fillcolor="LightSkyBlue", opacity=0.5, 
+            layer="below", line_width=0, 
+            row=1, col=1,
+        )
+    # Dummy trace to generate the legend entry for the O-mask shaded regions
+    updated_plot.add_trace(
+        go.Scatter(x=[None], y=[None], mode='markers', marker=dict(color='LightSkyBlue', size=12, symbol='square'), name='O-mask', legend='legend1'),
+        row=1, col=1
+    )
+
+    intervals = get_mask_intervals(maskX[:, x_idx])                                                    
+    for i_interv in range(intervals.shape[0]):
+        updated_plot.add_vrect(
+            x0=intervals[i_interv,0], x1=intervals[i_interv,1], 
+            fillcolor="LightPink", opacity=0.5, 
+            layer="below", line_width=0, 
+            row=1, col=1,
+        )
+    # Dummy trace to generate the legend entry for the X-mask shaded regions
+    updated_plot.add_trace(
+        go.Scatter(x=[None], y=[None], mode='markers', marker=dict(color='LightPink', size=12, symbol='square'), name='X-mask', legend='legend1'),
         row=1, col=1
     )
 
     updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='blue'), name='X-trace hv', legend='legend2'),
+        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='black'), name='power', legend='legend2'),
+        row=2, col=1
+    )
+    updated_plot.add_trace(
+        go.Bar(x=np.arange(20, hts.shape[0]), y=col_data[20:] * maskO[20:, x_idx], marker_color='black', name='O masked power', legend='legend2'),
         row=2, col=1
     )
 
-    updated_plot.add_vrect(
-        x0=80,                       # Start of the shaded region
-        x1=180,                      # End of the shaded region
-        fillcolor="LightSkyBlue",    # Color of the shade
-        opacity=0.3,                 # Make it semi-transparent
-        layer="below",               # Push the shade *behind* the data line
-        line_width=0,                # Remove the border around the shaded box
-        row=2,                       # Specify the exact row!
-        col=1                        # Specify the column
-    )
-
     updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='blue'), name='X-trace hv', legend='legend3'),
+        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='black'), name='X-trace hv', legend='legend3'),
+        row=3, col=1
+    )
+    updated_plot.add_trace(
+        go.Bar(x=np.arange(20, hts.shape[0]), y=col_data[20:] * maskX[20:, x_idx], marker_color='black', name='X masked power', legend='legend3'),
         row=3, col=1
     )
 
@@ -539,7 +575,7 @@ def update_cross_section(clickData, search_query):
     updated_plot.update_layout(**layout_update)
 
     for i_row in range(1, 4):
-        updated_plot.update_xaxes(title_text="Height Index", row=i_row, col=1, gridcolor='lightgrey')
+        # updated_plot.update_xaxes(title_text="Height Index", row=i_row, col=1, gridcolor='lightgrey')
         updated_plot.update_yaxes(title_text="Power (linear)", row=i_row, col=1, gridcolor='lightgrey')
-
+    updated_plot.update_xaxes(title_text="Height Index", row=1, col=1, gridcolor='lightgrey')
     return updated_plot
