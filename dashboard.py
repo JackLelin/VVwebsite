@@ -36,12 +36,79 @@ def filter_out_noise_peaks(img, freqs, idx, mu, std, A):
         A_filtered += [(A[idx == irow])[ii]]
     return np.array(x_filtered), np.array(mu_filtered), np.array(std_filtered), np.array(A_filtered)
 
-# --- 3. Define the Layout ---
+# --- 3. Plot Functions & Config ---
+# Each plot function takes (fig, data, freqs, hts, intensity, col_idx, legend_name)
+# and adds its traces to the subplot at the given column.
+
+def plot_original_ionogram(fig, data, freqs, hts, intensity, col_idx, legend_name):
+    """(a) Original Ionogram — jet colorscale heatmap."""
+    # Position colorbar at the right edge of this subplot's domain
+    xaxis_key = 'xaxis' if col_idx == 1 else f'xaxis{col_idx}'
+    domain_end = fig.layout[xaxis_key].domain[1]
+    fig.add_trace(
+        go.Heatmap(
+            z=intensity, x=freqs, y=hts,
+            colorscale='Jet', zmin=10, zmax=70,
+            colorbar=dict(thickness=10, x=domain_end + 0.01, len=0.9),
+            name='Original', showlegend=False
+        ),
+        row=1, col=col_idx
+    )
+
+def plot_inversion_result(fig, data, freqs, hts, intensity, col_idx, legend_name):
+    """(b) Inversion Result — grayscale background + inversion overlay traces."""
+    fig.add_trace(
+        go.Heatmap(
+            z=intensity, x=freqs, y=hts,
+            colorscale='Greys', reversescale=True, zmin=10, zmax=70,
+            showscale=False,
+            name='Background', showlegend=False
+        ),
+        row=1, col=col_idx
+    )
+    fps = data['vipir_inversion_fps']
+    Z = data['vipir_inversion_z_hts']
+    x_vals = data['vipir_inversion_all_xvals'][-1]
+    z = data['vipir_inversion_z_node']
+    fvsO = data['vipir_inversion_fvsO']
+    vhsO = data['vipir_inversion_vhsO']
+    fvsX = data['vipir_inversion_fvsX']
+    vhsX = data['vipir_inversion_vhsX']
+    
+    fig.add_trace(go.Scatter(x=fps, y=Z, mode='lines', line=dict(color='darkgreen'), name='spline fp', legend=legend_name), row=1, col=col_idx)
+    fig.add_trace(go.Scatter(x=x_vals, y=z, mode='markers', marker=dict(color='green', size=6), name='spline node', legend=legend_name), row=1, col=col_idx)
+    fig.add_trace(go.Scatter(x=fvsO, y=vhsO, mode='lines', line=dict(color='red'), name='O-trace hv', legend=legend_name), row=1, col=col_idx)
+    fig.add_trace(go.Scatter(x=fvsX, y=vhsX, mode='lines', line=dict(color='blue'), name='X-trace hv', legend=legend_name), row=1, col=col_idx)
+
+def plot_thinned_traces(fig, data, freqs, hts, intensity, col_idx, legend_name):
+    """(c) Thinned Traces — grayscale background + GMM scatter overlay."""
+    fig.add_trace(
+        go.Heatmap(
+            z=intensity, x=freqs, y=hts,
+            colorscale='Greys', reversescale=True, zmin=10, zmax=70,
+            showscale=False,
+            name='Background', showlegend=False
+        ),
+        row=1, col=col_idx
+    )
+    imgO = data['vipir_DNN_imgO']
+    imgX = data['vipir_DNN_imgX']
+    f_idx_o, f_mu_o, _, _ = filter_out_noise_peaks(imgO, freqs, np.array(data['vipir_thin_freqidx_o']), np.array(data['vipir_thin_mu_o']), np.array(data['vipir_thin_std_o']), np.array(data['vipir_thin_A_o']))
+    f_idx_x, f_mu_x, _, _ = filter_out_noise_peaks(imgX, freqs, np.array(data['vipir_thin_freqidx_x']), np.array(data['vipir_thin_mu_x']), np.array(data['vipir_thin_std_x']), np.array(data['vipir_thin_A_x']))
+    
+    idx_x_ints = np.round(f_idx_x).astype(int)
+    mu_x_ints  = np.round(f_mu_x).astype(int)
+    fig.add_trace(go.Scatter(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x', color='blue', size=6), name='X-mode', legend=legend_name), row=1, col=col_idx)
+    
+    idx_o_ints = np.round(f_idx_o).astype(int)
+    mu_o_ints  = np.round(f_mu_o).astype(int)
+    fig.add_trace(go.Scatter(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='x', color='red', size=6), name='O-mode', legend=legend_name), row=1, col=col_idx)
+
 
 PLOT_CONFIG = [
-    {'id': 'a', 'label': '(a) Original Ionogram'},
-    {'id': 'b', 'label': '(b) Inversion Result'},
-    {'id': 'c', 'label': '(c) Thinned Traces'}
+    {'id': 'a', 'label': '(a) Original Ionogram',  'plot_func': plot_original_ionogram},
+    {'id': 'b', 'label': '(b) Inversion Result',    'plot_func': plot_inversion_result},
+    {'id': 'c', 'label': '(c) Thinned Traces',      'plot_func': plot_thinned_traces}
 ]
 
 def serve_layout():
@@ -113,7 +180,7 @@ def serve_layout():
         
         # RIGHT PANE (25%)
         html.Div([
-            html.H2("Detailed Analysis", style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'marginTop': '0', 'color': '#333'}),
+            html.H3("Detail of Selected Column", style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'marginTop': '0', 'color': '#333'}),
             dcc.Graph(
                 id='cross-section-plot',
                 figure=go.Figure().update_layout(title="Click on the (a) Original Ionogram to see cross-section", margin=dict(l=40, r=40, t=50, b=40)),
@@ -129,9 +196,9 @@ def serve_layout():
 
 # Callback 1: Toggle visibility & resize (Client-Side Javascript - No server roundtrip)
 clientside_callback(
-    """
+    '''
     function(selected_panels, width, height) {
-        var abcPanels = ['a', 'b', 'c'];
+        var abcPanels =  '''+f"{[p['id'] for p in PLOT_CONFIG]}"+''';
         var anyABC = abcPanels.some(function(p) { return selected_panels.includes(p); });
         var abcCount = abcPanels.filter(function(p) { return selected_panels.includes(p); }).length;
         
@@ -146,7 +213,7 @@ clientside_callback(
             return {'display': 'none'};
         }
     }
-    """,
+    ''',
     Output('plot-abc-wrapper', 'style'),
     Input('plot-toggles', 'value'),
     Input('plot-size-slider', 'value'),
@@ -185,18 +252,12 @@ def generate_all_plots(search_query, selected_panels):
     intensity = 10 * np.log10(org + 1)
     
     # --- Determine which ABC panels are visible ---
-    abc_panels = [p for p in ['a', 'b', 'c'] if p in selected_panels]
+    abc_panels = [p['id'] for p in PLOT_CONFIG if p['id'] in selected_panels]
     n_cols = len(abc_panels) if abc_panels else 1
     
     # Build column titles based on which panels are active
-    col_titles = []
-    for p in abc_panels:
-        if p == 'a':
-            col_titles.append("(a) Original Ionogram (dB)")
-        elif p == 'b':
-            col_titles.append("(b) Inversion Result")
-        elif p == 'c':
-            col_titles.append("(c) Thinned Traces with GMM")
+    label_map = {p['id']: p['label'] for p in PLOT_CONFIG}
+    col_titles = [label_map[p] for p in abc_panels]
     
     if not abc_panels:
         col_titles = ["No panels selected"]
@@ -210,96 +271,20 @@ def generate_all_plots(search_query, selected_panels):
         horizontal_spacing=0.03
     )
     
-    col_idx = 0  # track current column position
-    
-    # (a) Original Ionogram
-    if 'a' in abc_panels:
-        col_idx = abc_panels.index('a') + 1
-        fig_abc.add_trace(
-            go.Heatmap(
-                z=intensity, x=freqs, y=hts,
-                colorscale='Jet', zmin=10, zmax=70,
-                colorbar=dict(thickness=10, x=1.0, len=0.9),
-                name='Original', showlegend=False
-            ),
-            row=1, col=col_idx
-        )
-    
-    # (b) Inversion Result
-    if 'b' in abc_panels:
-        col_idx = abc_panels.index('b') + 1
-        # Background grayscale ionogram
-        fig_abc.add_trace(
-            go.Heatmap(
-                z=intensity, x=freqs, y=hts,
-                colorscale='Greys', reversescale=True, zmin=10, zmax=70,
-                showscale=False,
-                name='Background', showlegend=False
-            ),
-            row=1, col=col_idx
-        )
-        # Overlay inversion traces
-        fps = data['vipir_inversion_fps']
-        Z = data['vipir_inversion_z_hts']
-        x_vals = data['vipir_inversion_all_xvals'][-1]
-        z = data['vipir_inversion_z_node']
-        fvsO = data['vipir_inversion_fvsO']
-        vhsO = data['vipir_inversion_vhsO']
-        fvsX = data['vipir_inversion_fvsX']
-        vhsX = data['vipir_inversion_vhsX']
-        
-        fig_abc.add_trace(go.Scatter(x=fps, y=Z, mode='lines', line=dict(color='darkgreen'), name='spline fp', legend='legend2'), row=1, col=col_idx)
-        fig_abc.add_trace(go.Scatter(x=x_vals, y=z, mode='markers', marker=dict(color='green', size=6), name='spline node', legend='legend2'), row=1, col=col_idx)
-        fig_abc.add_trace(go.Scatter(x=fvsO, y=vhsO, mode='lines', line=dict(color='red'), name='O-trace hv', legend='legend2'), row=1, col=col_idx)
-        fig_abc.add_trace(go.Scatter(x=fvsX, y=vhsX, mode='lines', line=dict(color='blue'), name='X-trace hv', legend='legend2'), row=1, col=col_idx)
-    
-    # (c) Thinned Traces
-    if 'c' in abc_panels:
-        col_idx = abc_panels.index('c') + 1
-        # Background grayscale ionogram
-        fig_abc.add_trace(
-            go.Heatmap(
-                z=intensity, x=freqs, y=hts,
-                colorscale='Greys', reversescale=True, zmin=10, zmax=70,
-                showscale=False,
-                name='Background', showlegend=False
-            ),
-            row=1, col=col_idx
-        )
-        # Overlay thinned traces
-        imgO = data['vipir_DNN_imgO']
-        imgX = data['vipir_DNN_imgX']
-        f_idx_o, f_mu_o, _, _ = filter_out_noise_peaks(imgO, freqs, np.array(data['vipir_thin_freqidx_o']), np.array(data['vipir_thin_mu_o']), np.array(data['vipir_thin_std_o']), np.array(data['vipir_thin_A_o']))
-        f_idx_x, f_mu_x, _, _ = filter_out_noise_peaks(imgX, freqs, np.array(data['vipir_thin_freqidx_x']), np.array(data['vipir_thin_mu_x']), np.array(data['vipir_thin_std_x']), np.array(data['vipir_thin_A_x']))
-        
-        # scat_idx_x = np.append(np.arange(len(f_idx_x)//5)*5, -2)
-        idx_x_ints = np.round(f_idx_x).astype(int)
-        mu_x_ints  = np.round(f_mu_x).astype(int)
-        fig_abc.add_trace(go.Scatter(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x', color='blue', size=6), name='X-mode', legend='legend3'), row=1, col=col_idx)
-        
-        # scat_idx_o = np.append(np.arange(len(f_idx_o)//5)*5, -2)
-        idx_o_ints = np.round(f_idx_o).astype(int)
-        mu_o_ints  = np.round(f_mu_o).astype(int)
-        fig_abc.add_trace(go.Scatter(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='x', color='red', size=6), name='O-mode', legend='legend3'), row=1, col=col_idx)
-    
-    # Position each legend over its corresponding subplot column
-    # Get the x-domain of each subplot to place legends correctly
+    # Build each panel by calling its registered plot function
+    config_map = {p['id']: p for p in PLOT_CONFIG}
     legend_style = dict(yanchor="top", y=0.99, bgcolor="rgba(255,255,255,0.7)", font=dict(size=10))
-    
     layout_update = dict(margin=dict(l=10, r=10, t=60, b=10))
     
-    if 'b' in abc_panels:
-        b_col = abc_panels.index('b') + 1
-        # Get the x-domain start of subplot B's axis
-        xaxis_key = 'xaxis' if b_col == 1 else f'xaxis{b_col}'
-        b_domain = fig_abc.layout[xaxis_key].domain
-        layout_update['legend2'] = dict(**legend_style, xanchor="left", x=b_domain[0] + 0.01)
-    
-    if 'c' in abc_panels:
-        c_col = abc_panels.index('c') + 1
-        xaxis_key = 'xaxis' if c_col == 1 else f'xaxis{c_col}'
-        c_domain = fig_abc.layout[xaxis_key].domain
-        layout_update['legend3'] = dict(**legend_style, xanchor="left", x=c_domain[0] + 0.01)
+    for col_idx, panel_id in enumerate(abc_panels, start=1):
+        # Each column gets its own legend: legend, legend2, legend3, ...
+        legend_name = 'legend' if col_idx == 1 else f'legend{col_idx}'
+        config_map[panel_id]['plot_func'](fig_abc, data, freqs, hts, intensity, col_idx, legend_name)
+        
+        # Position this column's legend over its subplot domain
+        xaxis_key = 'xaxis' if col_idx == 1 else f'xaxis{col_idx}'
+        domain = fig_abc.layout[xaxis_key].domain
+        layout_update[legend_name] = dict(**legend_style, xanchor="left", x=domain[0] + 0.01)
     
     fig_abc.update_layout(**layout_update)
     # Label axes - only first column gets y-axis label
