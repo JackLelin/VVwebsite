@@ -308,24 +308,6 @@ def serve_layout():
         # RIGHT PANE (25%)
         html.Div([
             html.H3("Detail of Selected Column", style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'marginTop': '0', 'color': '#333'}),
-            # dcc.Graph(
-            #     id='cross-section-plot',
-            #     figure=go.Figure().update_layout(title="Click on the (a) Original Ionogram to see cross-section", margin=dict(l=40, r=40, t=50, b=40)),
-            #     style={'width': '100%', 'height': '300px'}, # Fixed height for column stack
-            #     config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
-            # ),
-            # dcc.Graph(
-            #     id='gmm-fit-O',
-            #     figure=go.Figure().update_layout(title="GMM Fit", margin=dict(l=40, r=40, t=50, b=40)),
-            #     style={'width': '100%', 'height': '300px'}, # Fixed height for column stack
-            #     config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
-            # ),
-            # dcc.Graph(
-            #     id='gmm-fit-X',
-            #     figure=go.Figure().update_layout(title="GMM Fit", margin=dict(l=40, r=40, t=50, b=40)),
-            #     style={'width': '100%', 'height': '300px'}, # Fixed height for column stack
-            #     config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
-            # )
             dcc.Graph(
                 id='cross-section-plot',
                 figure=make_subplots(
@@ -334,7 +316,7 @@ def serve_layout():
                     subplot_titles=["Click on the plots to see details of a column", "", ""],
                     vertical_spacing=0.1
                 ),
-                style={'width': '100%', 'height': '900px'}, # Fixed height for column stack
+                style={'width': '100%', 'height': '750px'}, # Fixed height for column stack
                 config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
             )
 
@@ -452,7 +434,8 @@ def generate_all_plots(search_query, selected_panels, reset_clicks):
     
     return fig_abc
 
-
+def gaussian(x, A, mu, sigma):
+    return A * np.exp(-(x - mu)**2 / (2 * sigma**2))
 def get_mask_intervals(col_mask):                                                                                                                                                                                              
     # Find where the value changes                                                      
     diff = np.diff(col_mask.astype(int), prepend=0, append=0)                               
@@ -517,17 +500,71 @@ def update_cross_section(clickData, search_query):
         row=1, col=1
     )
 
+    idx_o = np.array(data['vipir_thin_freqidx_o'])
+    mu_o = np.array(data['vipir_thin_mu_o'])[idx_o == x_idx]
+    std_o = np.array(data['vipir_thin_std_o'])[idx_o == x_idx]
+    A_o = np.array(data['vipir_thin_A_o'])[idx_o == x_idx]
+    idx_x = np.array(data['vipir_thin_freqidx_x'])
+    mu_x = np.array(data['vipir_thin_mu_x'])[idx_x == x_idx]
+    std_x = np.array(data['vipir_thin_std_x'])[idx_x == x_idx]
+    A_x = np.array(data['vipir_thin_A_x'])[idx_x == x_idx]
+
+    # m = np.median(YY[(XX==irow) | (XX==(irow-1)) | (XX==(irow+1))])
+    # x_filtered += [irow]
+    # ii = np.argmin(np.abs(mu[idx == irow] - m))
+    # # y_median += [(mu[idx == irow])[np.argmin(np.abs(mu[idx == irow] - m))]]
+
+    # mu_filtered += [(mu[idx == irow])[ii]]
+    # std_filtered += [(std[idx == irow])[ii]]
+    # A_filtered += [(A[idx == irow])[ii]]
+    updated_plot.add_trace(
+        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='grey'), name='power', legend='legend2'),
+        row=2, col=1
+    )
+    updated_plot.add_trace(
+        go.Bar(x=np.arange(20, hts.shape[0]), y=col_data[20:] * maskO[20:, x_idx], marker_color='grey', opacity=0.6, name='O masked power', legend='legend2'),
+        row=2, col=1
+    )
+
+    x_axis_o = np.linspace(mu_o.min()-10, mu_o.max()+10, 1000)
+    gmm_sum_o = np.zeros_like(x_axis_o)
+    colors = ['red', 'black']
+    linewith = [1,1]
+    for i in range(np.sum(idx_o == x_idx)):
+        pdf = gaussian(x_axis_o, A_o[i], mu_o[i], std_o[i])
+        updated_plot.add_trace(
+        go.Scatter(x=x_axis_o, y=pdf, mode='lines', line=dict(color=colors[i], width=linewith[i]), name=f'Component {i+1}', legend='legend2'),row=2, col=1) 
+        gmm_sum_o += pdf
+
+    updated_plot.add_trace(
+        go.Scatter(x=x_axis_o, y=gmm_sum_o, mode='lines', line=dict(color='grey', width=3), name=f'Sum of Components', legend='legend2'), 
+        row=2, col=1)
+
+    updated_plot.add_trace(
+        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='grey'), name='power', legend='legend3'),
+        row=3, col=1
+    )
+    updated_plot.add_trace(
+        go.Bar(x=np.arange(20, hts.shape[0]), y=col_data[20:] * maskX[20:, x_idx], marker_color='grey', opacity=0.6, name='X masked power', legend='legend3'),
+        row=3, col=1
+    )
+
     intervals = get_mask_intervals(maskO[:, x_idx])                                                    
     for i_interv in range(intervals.shape[0]):
         updated_plot.add_vrect(
             x0=intervals[i_interv,0], x1=intervals[i_interv,1], 
-            fillcolor="LightSkyBlue", opacity=0.5, 
+            fillcolor="LightPink", opacity=0.5, 
             layer="below", line_width=0, 
-            row=1, col=1,
-        )
+            row=1, col=1)
+        
+        updated_plot.add_vrect(
+            x0=intervals[i_interv,0], x1=intervals[i_interv,1], 
+            fillcolor="LightPink", opacity=0.5, 
+            layer="above", line_width=0, 
+            row=2, col=1)
     # Dummy trace to generate the legend entry for the O-mask shaded regions
     updated_plot.add_trace(
-        go.Scatter(x=[None], y=[None], mode='markers', marker=dict(color='LightSkyBlue', size=12, symbol='square'), name='O-mask', legend='legend1'),
+        go.Scatter(x=[None], y=[None], mode='markers', marker=dict(color='LightPink', size=12, symbol='square'), name='O-mask', legend='legend1'),
         row=1, col=1
     )
 
@@ -535,32 +572,20 @@ def update_cross_section(clickData, search_query):
     for i_interv in range(intervals.shape[0]):
         updated_plot.add_vrect(
             x0=intervals[i_interv,0], x1=intervals[i_interv,1], 
-            fillcolor="LightPink", opacity=0.5, 
+            fillcolor="LightSkyBlue", opacity=0.5, 
             layer="below", line_width=0, 
-            row=1, col=1,
-        )
+            row=1, col=1)
+                
+        updated_plot.add_vrect(
+            x0=intervals[i_interv,0], x1=intervals[i_interv,1], 
+            fillcolor="LightSkyBlue", opacity=0.5, 
+            layer="below", line_width=0, 
+            row=3, col=1)
+        
     # Dummy trace to generate the legend entry for the X-mask shaded regions
     updated_plot.add_trace(
-        go.Scatter(x=[None], y=[None], mode='markers', marker=dict(color='LightPink', size=12, symbol='square'), name='X-mask', legend='legend1'),
+        go.Scatter(x=[None], y=[None], mode='markers', marker=dict(color='LightSkyBlue', size=12, symbol='square'), name='X-mask', legend='legend1'),
         row=1, col=1
-    )
-
-    updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='black'), name='power', legend='legend2'),
-        row=2, col=1
-    )
-    updated_plot.add_trace(
-        go.Bar(x=np.arange(20, hts.shape[0]), y=col_data[20:] * maskO[20:, x_idx], marker_color='black', name='O masked power', legend='legend2'),
-        row=2, col=1
-    )
-
-    updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='black'), name='X-trace hv', legend='legend3'),
-        row=3, col=1
-    )
-    updated_plot.add_trace(
-        go.Bar(x=np.arange(20, hts.shape[0]), y=col_data[20:] * maskX[20:, x_idx], marker_color='black', name='X masked power', legend='legend3'),
-        row=3, col=1
     )
 
     legend_style = dict(yanchor="top",xanchor="left", x=0.02, bgcolor="rgba(255,255,255,0.7)", font=dict(size=10))
@@ -569,7 +594,8 @@ def update_cross_section(clickData, search_query):
         paper_bgcolor='white')
 
     for i_row in range(1, 4):
-        b_domain = updated_plot.layout[f'yaxis{i_row}'].domain
+        axis_key = 'yaxis' if i_row == 1 else f'yaxis{i_row}'
+        b_domain = updated_plot.layout[axis_key].domain
         layout_update[f'legend{i_row}'] = dict(**legend_style, y=b_domain[1] - 0.01)
     
     updated_plot.update_layout(**layout_update)
