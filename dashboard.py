@@ -500,23 +500,6 @@ def update_cross_section(clickData, search_query):
         row=1, col=1
     )
 
-    idx_o = np.array(data['vipir_thin_freqidx_o'])
-    mu_o = np.array(data['vipir_thin_mu_o'])[idx_o == x_idx]
-    std_o = np.array(data['vipir_thin_std_o'])[idx_o == x_idx]
-    A_o = np.array(data['vipir_thin_A_o'])[idx_o == x_idx]
-    idx_x = np.array(data['vipir_thin_freqidx_x'])
-    mu_x = np.array(data['vipir_thin_mu_x'])[idx_x == x_idx]
-    std_x = np.array(data['vipir_thin_std_x'])[idx_x == x_idx]
-    A_x = np.array(data['vipir_thin_A_x'])[idx_x == x_idx]
-
-    # m = np.median(YY[(XX==irow) | (XX==(irow-1)) | (XX==(irow+1))])
-    # x_filtered += [irow]
-    # ii = np.argmin(np.abs(mu[idx == irow] - m))
-    # # y_median += [(mu[idx == irow])[np.argmin(np.abs(mu[idx == irow] - m))]]
-
-    # mu_filtered += [(mu[idx == irow])[ii]]
-    # std_filtered += [(std[idx == irow])[ii]]
-    # A_filtered += [(A[idx == irow])[ii]]
     updated_plot.add_trace(
         go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='grey'), name='power', legend='legend2'),
         row=2, col=1
@@ -526,20 +509,6 @@ def update_cross_section(clickData, search_query):
         row=2, col=1
     )
 
-    x_axis_o = np.linspace(mu_o.min()-10, mu_o.max()+10, 1000)
-    gmm_sum_o = np.zeros_like(x_axis_o)
-    colors = ['red', 'black']
-    linewith = [1,1]
-    for i in range(np.sum(idx_o == x_idx)):
-        pdf = gaussian(x_axis_o, A_o[i], mu_o[i], std_o[i])
-        updated_plot.add_trace(
-        go.Scatter(x=x_axis_o, y=pdf, mode='lines', line=dict(color=colors[i], width=linewith[i]), name=f'Component {i+1}', legend='legend2'),row=2, col=1) 
-        gmm_sum_o += pdf
-
-    updated_plot.add_trace(
-        go.Scatter(x=x_axis_o, y=gmm_sum_o, mode='lines', line=dict(color='grey', width=3), name=f'Sum of Components', legend='legend2'), 
-        row=2, col=1)
-
     updated_plot.add_trace(
         go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='grey'), name='power', legend='legend3'),
         row=3, col=1
@@ -548,6 +517,93 @@ def update_cross_section(clickData, search_query):
         go.Bar(x=np.arange(20, hts.shape[0]), y=col_data[20:] * maskX[20:, x_idx], marker_color='grey', opacity=0.6, name='X masked power', legend='legend3'),
         row=3, col=1
     )
+
+    idx_o = np.array(data['vipir_thin_freqidx_o'])
+    mu_o = np.array(data['vipir_thin_mu_o'])[idx_o == x_idx]
+    std_o = np.array(data['vipir_thin_std_o'])[idx_o == x_idx]
+    A_o = np.array(data['vipir_thin_A_o'])[idx_o == x_idx]
+    idx_x = np.array(data['vipir_thin_freqidx_x'])
+    mu_x = np.array(data['vipir_thin_mu_x'])[idx_x == x_idx]
+    std_x = np.array(data['vipir_thin_std_x'])[idx_x == x_idx]
+    A_x = np.array(data['vipir_thin_A_x'])[idx_x == x_idx]
+
+    # Find the median index (center) of the active O-mask at this frequency
+    mask_indices_o = np.where(maskO[:, x_idx])[0]
+    if len(mask_indices_o) > 0 and len(mu_o) > 0:
+        mask_center_o = np.median(mask_indices_o)
+        # Identify the component whose mu is closest to the mask center
+        major_idx_o = np.argmin(np.abs(mu_o - mask_center_o))
+    else:
+        major_idx_o = 0 # Default fallback
+
+    if len(mu_o) > 0:
+        x_axis_o = np.linspace(mu_o.min()-10, mu_o.max()+10, 1000)
+        gmm_sum_o = np.zeros_like(x_axis_o)
+        
+        for i in range(len(mu_o)):
+            pdf = gaussian(x_axis_o, A_o[i], mu_o[i], std_o[i])
+            
+            # Apply styling based on whether this is the major component
+            is_major = (i == major_idx_o)
+            comp_color = 'red' if is_major else 'black'
+            comp_width = 2 if is_major else 1
+            comp_name = 'Major Component' if is_major else f'Minor Component'
+            
+            updated_plot.add_trace(
+                go.Scatter(x=x_axis_o, y=pdf, mode='lines', line=dict(color=comp_color, width=comp_width), name=comp_name, legend='legend2'),
+                row=2, col=1
+            ) 
+            gmm_sum_o += pdf
+
+        # Changed the sum trace to a dotted black line so it contrasts nicely against the grey minor components!
+        updated_plot.add_trace(
+            go.Scatter(x=x_axis_o, y=gmm_sum_o, mode='lines', line=dict(color='black', width=2, dash='dot'), name=f'Sum of Components', legend='legend2'), 
+            row=2, col=1
+        )
+
+    # Find the median index (center) of the active X-mask at this frequency
+    mask_indices_x = np.where(maskX[:, x_idx])[0]
+    if len(mask_indices_x) > 0 and len(mu_x) > 0:
+        mask_center_x = np.median(mask_indices_x)
+        # Identify the component whose mu is closest to the mask center
+        major_idx_x = np.argmin(np.abs(mu_x - mask_center_x))
+    else:
+        major_idx_x = 0 # Default fallback
+
+    # Find the median index (center) of the active O-mask at this frequency
+    mask_indices_o = np.where(maskO[:, x_idx])[0]
+    if len(mask_indices_o) > 0 and len(mu_o) > 0:
+        mask_center_o = np.median(mask_indices_o)
+        # Identify the component whose mu is closest to the mask center
+        major_idx_o = np.argmin(np.abs(mu_o - mask_center_o))
+    else:
+        major_idx_o = 0 # Default fallback
+
+    if len(mu_x) > 0:
+        x_axis_x = np.linspace(mu_x.min()-10, mu_x.max()+10, 1000)
+        gmm_sum_x = np.zeros_like(x_axis_x)
+        
+        for i in range(len(mu_x)):
+            pdf = gaussian(x_axis_x, A_x[i], mu_x[i], std_x[i])
+            
+            # Apply styling based on whether this is the major component
+            is_major = (i == major_idx_x)
+            comp_color = 'red' if is_major else 'black'
+            comp_width = 2 if is_major else 1
+            comp_name = 'Major Component' if is_major else f'Minor Component'
+            
+            updated_plot.add_trace(
+                go.Scatter(x=x_axis_x, y=pdf, mode='lines', line=dict(color=comp_color, width=comp_width), name=comp_name, legend='legend3'),
+                row=3, col=1
+            ) 
+            gmm_sum_x += pdf
+
+        # Changed the sum trace to a dotted black line so it contrasts nicely against the grey minor components!
+        updated_plot.add_trace(
+            go.Scatter(x=x_axis_x, y=gmm_sum_x, mode='lines', line=dict(color='black', width=2, dash='dot'), name=f'Sum of Components', legend='legend3'), 
+            row=3, col=1
+        )
+
 
     intervals = get_mask_intervals(maskO[:, x_idx])                                                    
     for i_interv in range(intervals.shape[0]):
