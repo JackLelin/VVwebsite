@@ -1,0 +1,6 @@
+/* assets/custom.css */
+.modebar-container {
+    right: auto !important;
+    left: 10px !important;  /* Adjust this to push it further left/right */
+    top: 0px !important;    /* Adjust this to push it up/down */
+}

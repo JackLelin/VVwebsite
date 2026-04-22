@@ -87,11 +87,11 @@ def plot_inversion_result(fig, data, col_idx, legend_name):
     fig.add_trace(go.Scatter(x=fvsO, y=vhsO, mode='lines', line=dict(color='red'), name='O-trace hv', legend=legend_name), row=1, col=col_idx)
     fig.add_trace(go.Scatter(x=fvsX, y=vhsX, mode='lines', line=dict(color='blue'), name='X-trace hv', legend=legend_name), row=1, col=col_idx)
 
-    imgO = data['vipir_DNN_imgO']
-    imgX = data['vipir_DNN_imgX']
-    f_idx_o, f_mu_o, _, _ = filter_out_noise_peaks(imgO, freqs, np.array(data['vipir_thin_freqidx_o']), np.array(data['vipir_thin_mu_o']), np.array(data['vipir_thin_std_o']), np.array(data['vipir_thin_A_o']))
-    f_idx_x, f_mu_x, _, _ = filter_out_noise_peaks(imgX, freqs, np.array(data['vipir_thin_freqidx_x']), np.array(data['vipir_thin_mu_x']), np.array(data['vipir_thin_std_x']), np.array(data['vipir_thin_A_x']))
-    
+    f_idx_o = data['filtered_idx_o']
+    f_idx_x = data['filtered_idx_x']
+    f_mu_o = data['filtered_mu_o']
+    f_mu_x = data['filtered_mu_x']
+
     idx_x_ints = np.round(f_idx_x).astype(int)
     mu_x_ints  = np.round(f_mu_x).astype(int)
     fig.add_trace(go.Scatter(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x-thin', size=7, line=dict(width=1.5, color='blue')), name='X-mode peak', legend=legend_name), row=1, col=col_idx)
@@ -166,7 +166,62 @@ def plot_segmented_mask(fig, data, col_idx, legend_name):
         row=1, col=col_idx
     )
 
-    
+def plot_reconstructed_ionogram(fig, data, col_idx, legend_name):
+    freqs = data['vipir_freqs']
+    hts = data['vipir_hts']
+
+
+    intensity = 10 * np.log10(data['gauss_reconstruct_o'] + data['gauss_reconstruct_x'] + 1)
+    # Position colorbar at the right edge of this subplot's domain
+    xaxis_key = f'xaxis{col_idx}'
+    domain_end = fig.layout[xaxis_key].domain[1]
+    fig.add_trace(
+        go.Heatmap(
+            z=intensity, x=freqs, y=hts,
+            colorscale='Jet', zmin=10, zmax=70,
+            colorbar=dict(thickness=10, x=domain_end + 0.01, len=0.9),
+            name='Reconstructed Ionogram', showlegend=False
+        ),
+        row=1, col=col_idx
+    )
+
+def plot_reconstructed_X(fig, data, col_idx, legend_name):
+    freqs = data['vipir_freqs']
+    hts = data['vipir_hts']
+
+
+    intensity = 10 * np.log10(data['gauss_reconstruct_x'] + 1)
+    # Position colorbar at the right edge of this subplot's domain
+    xaxis_key = f'xaxis{col_idx}'
+    domain_end = fig.layout[xaxis_key].domain[1]
+    fig.add_trace(
+        go.Heatmap(
+            z=intensity, x=freqs, y=hts,
+            colorscale='Jet', zmin=10, zmax=70,
+            colorbar=dict(thickness=10, x=domain_end + 0.01, len=0.9),
+            name='Reconstructed Xtrace', showlegend=False
+        ),
+        row=1, col=col_idx
+    )
+
+def plot_reconstructed_O(fig, data, col_idx, legend_name):
+    freqs = data['vipir_freqs']
+    hts = data['vipir_hts']
+
+
+    intensity = 10 * np.log10(data['gauss_reconstruct_o'] + 1)
+    # Position colorbar at the right edge of this subplot's domain
+    xaxis_key = f'xaxis{col_idx}'
+    domain_end = fig.layout[xaxis_key].domain[1]
+    fig.add_trace(
+        go.Heatmap(
+            z=intensity, x=freqs, y=hts,
+            colorscale='Jet', zmin=10, zmax=70,
+            colorbar=dict(thickness=10, x=domain_end + 0.01, len=0.9),
+            name='Reconstructed Otrace', showlegend=False
+        ),
+        row=1, col=col_idx
+    )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TEMPLATE: How to add a new plot panel
@@ -230,6 +285,9 @@ PLOT_CONFIG = [
     {'id': 'b', 'label': 'Inversion Result',    'plot_func': plot_inversion_result},
     # {'id': 'c', 'label': 'Thinned Traces',      'plot_func': plot_thinned_traces},
     {'id': 'd', 'label': 'Segmented Mask',      'plot_func': plot_segmented_mask},
+    {'id': 'e', 'label': 'Reconstructed Ionogram', 'plot_func': plot_reconstructed_ionogram},
+    {'id': 'f', 'label': 'Reconstructed Otrace', 'plot_func': plot_reconstructed_O},
+    {'id': 'g', 'label': 'Reconstructed Xtrace', 'plot_func': plot_reconstructed_X},
     # --- To add a new panel, uncomment and modify: ---
     # {'id': 'd', 'label': '(d) My New Panel',      'plot_func': plot_my_heatmap},
 ]
@@ -384,6 +442,32 @@ def generate_all_plots(search_query, selected_panels, reset_clicks):
     freqs = data['vipir_freqs']
     hts = data['vipir_hts']
     
+    imgO = data['vipir_DNN_imgO']
+    imgX = data['vipir_DNN_imgX']
+    original = data['vipir_original']
+
+    f_idx_o, f_mu_o, f_std_o, f_A_o = filter_out_noise_peaks(imgO, freqs, np.array(data['vipir_thin_freqidx_o']), np.array(data['vipir_thin_mu_o']), np.array(data['vipir_thin_std_o']), np.array(data['vipir_thin_A_o']))
+    f_idx_x, f_mu_x, f_std_x, f_A_x = filter_out_noise_peaks(imgX, freqs, np.array(data['vipir_thin_freqidx_x']), np.array(data['vipir_thin_mu_x']), np.array(data['vipir_thin_std_x']), np.array(data['vipir_thin_A_x']))
+    
+    data['filtered_idx_o'] = f_idx_o
+    data['filtered_mu_o'] = f_mu_o
+    data['filtered_std_o'] = f_std_o
+    data['filtered_A_o'] = f_A_o
+    data['filtered_idx_x'] = f_idx_x
+    data['filtered_mu_x'] = f_mu_x
+    data['filtered_std_x'] = f_std_x
+    data['filtered_A_x'] = f_A_x
+
+    gauss_reconstruct_o = np.zeros_like(original)
+    gauss_reconstruct_x = np.zeros_like(original)
+    for i in range(len(f_idx_o)):
+        gauss_reconstruct_o[:, f_idx_o[i]] += gaussian(np.arange(original.shape[0]), f_A_o[i], f_mu_o[i], f_std_o[i])
+    for i in range(len(f_idx_x)):
+        gauss_reconstruct_x[:, f_idx_x[i]] += gaussian(np.arange(original.shape[0]), f_A_x[i], f_mu_x[i], f_std_x[i])
+
+    data['gauss_reconstruct_o'] = gauss_reconstruct_o
+    data['gauss_reconstruct_x'] = gauss_reconstruct_x
+
     # --- Determine which panels are visible ---
     abc_panels = [p['id'] for p in PLOT_CONFIG if p['id'] in selected_panels]
     n_cols = len(abc_panels) if abc_panels else 1
@@ -492,7 +576,7 @@ def update_cross_section(clickData, search_query):
     )
 
     updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='black'), name='X-trace hv', legend='legend1'),
+        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='black'), name='Power (linear)', legend='legend1'),
         row=1, col=1
     )
     updated_plot.add_trace(
@@ -501,7 +585,7 @@ def update_cross_section(clickData, search_query):
     )
 
     updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='grey'), name='power', legend='legend2'),
+        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='grey'), name='Power', legend='legend2'),
         row=2, col=1
     )
     updated_plot.add_trace(
@@ -510,7 +594,7 @@ def update_cross_section(clickData, search_query):
     )
 
     updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='grey'), name='power', legend='legend3'),
+        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='grey'), name='Power', legend='legend3'),
         row=3, col=1
     )
     updated_plot.add_trace(
@@ -616,7 +700,7 @@ def update_cross_section(clickData, search_query):
         updated_plot.add_vrect(
             x0=intervals[i_interv,0], x1=intervals[i_interv,1], 
             fillcolor="LightPink", opacity=0.5, 
-            layer="above", line_width=0, 
+            layer="below", line_width=0, 
             row=2, col=1)
     # Dummy trace to generate the legend entry for the O-mask shaded regions
     updated_plot.add_trace(
