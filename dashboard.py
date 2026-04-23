@@ -115,11 +115,11 @@ def plot_thinned_traces(fig, data, col_idx, legend_name):
         ),
         row=1, col=col_idx
     )
-    imgO = data['vipir_DNN_imgO']
-    imgX = data['vipir_DNN_imgX']
-    f_idx_o, f_mu_o, _, _ = filter_out_noise_peaks(imgO, freqs, np.array(data['vipir_thin_freqidx_o']), np.array(data['vipir_thin_mu_o']), np.array(data['vipir_thin_std_o']), np.array(data['vipir_thin_A_o']))
-    f_idx_x, f_mu_x, _, _ = filter_out_noise_peaks(imgX, freqs, np.array(data['vipir_thin_freqidx_x']), np.array(data['vipir_thin_mu_x']), np.array(data['vipir_thin_std_x']), np.array(data['vipir_thin_A_x']))
-    
+    f_idx_x = data['filtered_idx_x']
+    f_mu_x = data['filtered_mu_x']
+    f_idx_o = data['filtered_idx_o']
+    f_mu_o = data['filtered_mu_o']
+
     idx_x_ints = np.round(f_idx_x).astype(int)
     mu_x_ints  = np.round(f_mu_x).astype(int)
     fig.add_trace(go.Scatter(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x', color='blue', size=6), name='X-mode', legend=legend_name), row=1, col=col_idx)
@@ -345,7 +345,7 @@ def serve_layout():
                     dcc.Graph(
                         id='plot-abc-graph', 
                         style={'width': '100%', 'height': '100%'},
-                        config={'doubleClick': False, 'scrollZoom': True, 'modeBarButtonsToRemove': ['autoScale2d']}
+                        config={'doubleClick': False, 'scrollZoom': True, 'modeBarButtonsToRemove': ['autoScale2d'], 'displayModeBar': True}
                     ), 
                     id='plot-abc-wrapper', 
                     style={'display': 'block', 'flexShrink': 0}
@@ -375,7 +375,7 @@ def serve_layout():
                     vertical_spacing=0.1
                 ),
                 style={'width': '100%', 'height': '750px'}, # Fixed height for column stack
-                config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d']}
+                config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d'], 'displayModeBar': True}
             )
 
 
@@ -446,8 +446,8 @@ def generate_all_plots(search_query, selected_panels, reset_clicks):
     imgX = data['vipir_DNN_imgX']
     original = data['vipir_original']
 
-    f_idx_o, f_mu_o, f_std_o, f_A_o = filter_out_noise_peaks(imgO, freqs, np.array(data['vipir_thin_freqidx_o']), np.array(data['vipir_thin_mu_o']), np.array(data['vipir_thin_std_o']), np.array(data['vipir_thin_A_o']))
-    f_idx_x, f_mu_x, f_std_x, f_A_x = filter_out_noise_peaks(imgX, freqs, np.array(data['vipir_thin_freqidx_x']), np.array(data['vipir_thin_mu_x']), np.array(data['vipir_thin_std_x']), np.array(data['vipir_thin_A_x']))
+    f_idx_o, f_mu_o, f_std_o, f_A_o = filter_out_noise_peaks(imgO, freqs, data['vipir_thin_freqidx_o'], data['vipir_thin_mu_o'], data['vipir_thin_std_o'], data['vipir_thin_A_o'])
+    f_idx_x, f_mu_x, f_std_x, f_A_x = filter_out_noise_peaks(imgX, freqs, data['vipir_thin_freqidx_x'], data['vipir_thin_mu_x'], data['vipir_thin_std_x'], data['vipir_thin_A_x'])
     
     data['filtered_idx_o'] = f_idx_o
     data['filtered_mu_o'] = f_mu_o
@@ -602,14 +602,14 @@ def update_cross_section(clickData, search_query):
         row=3, col=1
     )
 
-    idx_o = np.array(data['vipir_thin_freqidx_o'])
-    mu_o = np.array(data['vipir_thin_mu_o'])[idx_o == x_idx]
-    std_o = np.array(data['vipir_thin_std_o'])[idx_o == x_idx]
-    A_o = np.array(data['vipir_thin_A_o'])[idx_o == x_idx]
-    idx_x = np.array(data['vipir_thin_freqidx_x'])
-    mu_x = np.array(data['vipir_thin_mu_x'])[idx_x == x_idx]
-    std_x = np.array(data['vipir_thin_std_x'])[idx_x == x_idx]
-    A_x = np.array(data['vipir_thin_A_x'])[idx_x == x_idx]
+    idx_o = data['vipir_thin_freqidx_o']
+    mu_o = data['vipir_thin_mu_o'][idx_o == x_idx]
+    std_o = data['vipir_thin_std_o'][idx_o == x_idx]
+    A_o = data['vipir_thin_A_o'][idx_o == x_idx]
+    idx_x = data['vipir_thin_freqidx_x']
+    mu_x = data['vipir_thin_mu_x'][idx_x == x_idx]
+    std_x = data['vipir_thin_std_x'][idx_x == x_idx]
+    A_x = data['vipir_thin_A_x'][idx_x == x_idx]
 
     # Find the median index (center) of the active O-mask at this frequency
     mask_indices_o = np.where(maskO[:, x_idx])[0]
