@@ -40,15 +40,15 @@ def serve_layout():
     gallery_image_cards = []
     for filepath in gallery_png_filepaths:
         filename = os.path.basename(filepath)
-        
+
         # Create a card for each image
         image_card_container = html.Div([
             html.A(
-                href=f"/dashboard?image={filename}", # Link to the detailed plot page
+                href=f"dashboard?image={filename}", # Link to the detailed plot page
                 target="_blank", # Open in a new tab
                 children=[
                     dcc.Markdown(
-                        f'<img src="/assets/{TARGET_GALLERY_SUBDIR}/{filename}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
+                        f'<img src="/vipir_inversion/assets/{TARGET_GALLERY_SUBDIR}/{filename}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
                         dangerously_allow_html=True
                     )
                 ]

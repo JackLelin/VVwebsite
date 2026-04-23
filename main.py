@@ -1,15 +1,18 @@
 from dash import Dash, html, dcc, Input, Output
 
+# Define your universal base URL
+BASE_URL = '/vipir_inversion/'
+
 # Create the master app instance right here in the main script!
 # We make it smart: Detect if we are running locally or via Apache WSGI
 if __name__ == '__main__':
-    # Local Testing Mode: No Apache to strip the URL, so we use the standard base pathname
-    vipir_app = Dash(__name__, url_base_pathname='/', suppress_callback_exceptions=True)
+    # Local Testing Mode: Forces local testing to use the exact same subfolder URL
+    vipir_app = Dash(__name__, url_base_pathname=BASE_URL, suppress_callback_exceptions=True)
 else:
     # Apache WSGI Mode: Apache strips the folder name, so we split the routing
     vipir_app = Dash(
         __name__, 
-        requests_pathname_prefix='/vipir_inversion/',
+        requests_pathname_prefix=BASE_URL,
         routes_pathname_prefix='/',
         suppress_callback_exceptions=True
     )
@@ -21,11 +24,18 @@ server = vipir_app.server
 import dashboard
 import gallery_app
 
-# The Master Router Layout
-vipir_app.layout = html.Div([
-    dcc.Location(id='url', refresh=False),
-    html.Div(id='page-content')
-])
+# ==========================================
+# THE FIX: Wrap layout in a function!
+# This stops Dash from crashing when it looks for callback IDs that 
+# haven't been rendered yet.
+# ==========================================
+def serve_master_layout():
+    return html.Div([
+        dcc.Location(id='url', refresh=False),
+        html.Div(id='page-content')
+    ])
+
+vipir_app.layout = serve_master_layout
 
 # The Router Callback
 @vipir_app.callback(
@@ -44,4 +54,5 @@ def display_page(pathname):
 
 if __name__ == '__main__':
     # Still listen locally if you ever need to run it without Apache
+    # debug=True is okay here since we are only using it locally
     vipir_app.run(host='127.0.0.1', port=8050, debug=True)

@@ -6,7 +6,9 @@ from plotly.subplots import make_subplots
 import urllib.parse
 import numpy as np
 
-consolidate_dir = "assets/Consolidate_result/" # directory where npy files are stored
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+consolidate_dir = os.path.join(BASE_DIR, "assets/Consolidate_result/") # directory where npy files are stored
 
 # --- Helper function stub ---
 # You used this in matplotlib but did not define it! I provided a fallback so it doesn't crash.
@@ -429,11 +431,11 @@ def generate_all_plots(search_query, selected_panels, reset_clicks):
     parsed = urllib.parse.parse_qs(search_query.lstrip('?'))
     if 'image' not in parsed:
         return empty_abc
-        
+    
     filename = parsed['image'][0]
     npy_filename = filename.replace('.png', '.npy')
     filepath = os.path.join(consolidate_dir, npy_filename)
-    
+
     if not os.path.exists(filepath):
         return empty_abc
         
