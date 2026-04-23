@@ -4,6 +4,9 @@ from dash import Dash, html, dcc, Input, Output
 # vipir_app = Dash(__name__, suppress_callback_exceptions=True)
 vipir_app = Dash(__name__, url_base_pathname='/vipir_inversion/')
 
+# Add this line right here to expose the underlying Flask server for WSGI
+server = vipir_app.server
+
 # Import the layouts and callbacks from our separate files
 import dashboard
 import gallery_app
