@@ -1,10 +1,15 @@
 from dash import Dash, html, dcc, Input, Output
 
 # Create the master app instance right here in the main script!
-# vipir_app = Dash(__name__, suppress_callback_exceptions=True)
-vipir_app = Dash(__name__, url_base_pathname='/vipir_inversion/')
+# We split the URL config so Dash knows the browser is asking for /vipir_inversion/
+# but internally it routes from the root '/' (because Apache strips the folder name).
+vipir_app = Dash(
+    __name__, 
+    requests_pathname_prefix='/vipir_inversion/',
+    routes_pathname_prefix='/'
+)
 
-# Add this line right here to expose the underlying Flask server for WSGI
+# Expose the underlying Flask server for WSGI (used by dashboard.wsgi)
 server = vipir_app.server
 
 # Import the layouts and callbacks from our separate files
@@ -23,23 +28,15 @@ vipir_app.layout = html.Div([
     Input('url', 'pathname')
 )
 def display_page(pathname):
-    if pathname == '/dashboard':
+    # Use .endswith() so it safely catches both '/dashboard' and 
+    # '/vipir_inversion/dashboard' regardless of where it is hosted.
+    if pathname and pathname.endswith('/dashboard'):
         # Render the detailed plot view
         return dashboard.serve_layout()
     else:
         # Default to the gallery (Main Entrance)
         return gallery_app.serve_layout()
 
-# if __name__ == '__main__':
-#     print("\n" + "="*50)
-#     print("🚀 Starting Multi-Page Dash Application!")
-#     print("Main Entrance (Gallery): http://127.0.0.1:8050/")
-#     print("Detailed Plot Page:      http://127.0.0.1:8050/dashboard")
-#     print("="*50 + "\n")
-    
-#     vipir_app.run(debug=True, port=8050)
-# ... the rest of your layout and callbacks ...
-
 if __name__ == '__main__':
-    # Still listen locally
+    # Still listen locally if you ever need to run it without Apache
     vipir_app.run(host='127.0.0.1', port=8050, debug=False)
