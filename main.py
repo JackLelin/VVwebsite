@@ -2,7 +2,7 @@ from dash import Dash, html, dcc, Input, Output
 
 # Create the master app instance right here in the main script!
 # vipir_app = Dash(__name__, suppress_callback_exceptions=True)
-app = Dash(__name__, url_base_pathname='/vipir_inversion/')
+vipir_app = Dash(__name__, url_base_pathname='/vipir_inversion/')
 
 # Import the layouts and callbacks from our separate files
 import dashboard
@@ -39,4 +39,4 @@ def display_page(pathname):
 
 if __name__ == '__main__':
     # Still listen locally
-    app.run_server(host='127.0.0.1', port=8050, debug=False)
+    vipir_app.run_server(host='127.0.0.1', port=8050, debug=False)
