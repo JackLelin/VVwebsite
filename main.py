@@ -1,13 +1,18 @@
 from dash import Dash, html, dcc, Input, Output
 
 # Create the master app instance right here in the main script!
-# We split the URL config so Dash knows the browser is asking for /vipir_inversion/
-# but internally it routes from the root '/' (because Apache strips the folder name).
-vipir_app = Dash(
-    __name__, 
-    requests_pathname_prefix='/vipir_inversion/',
-    routes_pathname_prefix='/'
-)
+# We make it smart: Detect if we are running locally or via Apache WSGI
+if __name__ == '__main__':
+    # Local Testing Mode: No Apache to strip the URL, so we use the standard base pathname
+    vipir_app = Dash(__name__, url_base_pathname='/', suppress_callback_exceptions=True)
+else:
+    # Apache WSGI Mode: Apache strips the folder name, so we split the routing
+    vipir_app = Dash(
+        __name__, 
+        requests_pathname_prefix='/vipir_inversion/',
+        routes_pathname_prefix='/',
+        suppress_callback_exceptions=True
+    )
 
 # Expose the underlying Flask server for WSGI (used by dashboard.wsgi)
 server = vipir_app.server
@@ -39,4 +44,4 @@ def display_page(pathname):
 
 if __name__ == '__main__':
     # Still listen locally if you ever need to run it without Apache
-    vipir_app.run(host='127.0.0.1', port=8050, debug=False)
+    vipir_app.run(host='127.0.0.1', port=8050, debug=True)
