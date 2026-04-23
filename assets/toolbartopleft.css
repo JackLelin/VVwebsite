@@ -1,6 +1,15 @@
-/* assets/custom.css */
-.modebar-container {
+.js-plotly-plot .plotly .modebar-container {
     right: auto !important;
-    left: 10px !important;  /* Adjust this to push it further left/right */
-    top: 0px !important;    /* Adjust this to push it up/down */
+    /* CRANK THIS WAY UP. If 200 doesn't work, try 400! */
+    left: 300px !important; 
+    top: 0px !important;
+    width: auto !important;
+    position: absolute !important;
+    transform: none !important;
+}
+
+.js-plotly-plot .plotly .modebar {
+    justify-content: flex-start !important;
+    flex-direction: row !important;
+    display: flex !important;
 }

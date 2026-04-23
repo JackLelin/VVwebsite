@@ -1,7 +1,8 @@
 from dash import Dash, html, dcc, Input, Output
 
 # Create the master app instance right here in the main script!
-vipir_app = Dash(__name__, suppress_callback_exceptions=True)
+# vipir_app = Dash(__name__, suppress_callback_exceptions=True)
+app = Dash(__name__, url_base_pathname='/vipir_inversion/')
 
 # Import the layouts and callbacks from our separate files
 import dashboard
@@ -26,11 +27,16 @@ def display_page(pathname):
         # Default to the gallery (Main Entrance)
         return gallery_app.serve_layout()
 
-if __name__ == '__main__':
-    print("\n" + "="*50)
-    print("🚀 Starting Multi-Page Dash Application!")
-    print("Main Entrance (Gallery): http://127.0.0.1:8050/")
-    print("Detailed Plot Page:      http://127.0.0.1:8050/dashboard")
-    print("="*50 + "\n")
+# if __name__ == '__main__':
+#     print("\n" + "="*50)
+#     print("🚀 Starting Multi-Page Dash Application!")
+#     print("Main Entrance (Gallery): http://127.0.0.1:8050/")
+#     print("Detailed Plot Page:      http://127.0.0.1:8050/dashboard")
+#     print("="*50 + "\n")
     
-    vipir_app.run(debug=True, port=8050)
+#     vipir_app.run(debug=True, port=8050)
+# ... the rest of your layout and callbacks ...
+
+if __name__ == '__main__':
+    # Still listen locally
+    app.run_server(host='127.0.0.1', port=8050, debug=False)
