@@ -93,15 +93,15 @@ def serve_layout():
             'boxShadow': '0 4px 20px rgba(0,0,0,0.3)',
             'fontFamily': 'sans-serif'
         }, children=[
-            html.H2("Plot Panel Explanations", style={'marginTop': '0', 'color': '#2c3e50'}),
-            html.P("This plot consists of multiple sub-panels showing different stages of the inversion:"),
+            html.H2("Click on the plot to see the different stages of the inversion.", style={'marginTop': '0', 'color': '#2c3e50'}),
+            html.P("The explanations of each sub-panel:"),
             html.Ul([
-                html.Li([html.B("(a) Original Trace: "), "Description of the first panel."]),
-                html.Li([html.B("(b) First Pass: "), "Description of the second panel."]),
-                html.Li([html.B("(c) Second Pass: "), "Description of the third panel."]),
-                html.Li([html.B("(d) Final Inversion: "), "Description of the fourth panel."])
+                html.Li([html.B("(a) Original Ionogram: "), "VIPIR ionogram presented on a dB scale."]),
+                html.Li([html.B("(b) Inversion result: "), "Green dots and curve represent the control points for the spline and the inverted electron density (Ne) profile, respectively. The red and blue curves are the predicted O and X traces from the inverted Ne profile."]),
+                html.Li([html.B("(c) The virtual height of reflection: "), "The virtual height of reflection is the peak location of the return signal."]),
+                html.Li([html.B("(d) Final Inversion: "), "Blue dots: Phase profile from the ISR. Red curve: The predicted phase profile from the Ne profile."])
             ], style={'lineHeight': '1.8', 'fontSize': '16px'}),
-            html.P(html.I("You can edit this text directly in the gallery_app.py file!")),
+            # html.P(html.I("You can edit this text directly in the gallery_app.py file!")),
             html.Div([
                 html.Button("Close Window", id="close-modal-btn", style={
                     'marginTop': '20px', 'padding': '10px 20px', 'cursor': 'pointer',
@@ -118,11 +118,11 @@ def serve_layout():
         
         # Header Area
         html.Div([
-            html.H1("Trace Thinning Image Gallery", style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'color': '#2c3e50', 'margin': '0 0 10px 0'}),
-            html.P(f"Found {len(gallery_png_filepaths)} images in the assets folder.", style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'color': '#7f8c8d', 'margin': '0 0 15px 0'}),
+            html.H1("Ionogram Inversion Result for Jan 14 2016", style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#2c3e50', 'margin': '0 0 10px 30px'}),
+            html.P(f"Total {len(gallery_png_filepaths)} images.", style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#7f8c8d', 'margin': '0 0 15px 30px'}),
             # Floating Button Container
             html.Div([
-                html.Button("📖 View Panel Explanations", id="open-modal-btn", style={
+                html.Button("View Panel Explanations", id="open-modal-btn", style={
                     'padding': '15px 25px', 'cursor': 'pointer',
                     'backgroundColor': '#3498db', 'color': 'white', 'border': 'none', 'borderRadius': '30px',
                     'fontWeight': 'bold', 'fontSize': '16px', 'boxShadow': '0 4px 15px rgba(0,0,0,0.3)',

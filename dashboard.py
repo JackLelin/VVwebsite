@@ -295,10 +295,49 @@ PLOT_CONFIG = [
 ]
 
 def serve_layout():
+    # 1. Define the Pop-Up Modal Window for Cross-Section Explanations
+    cross_section_modal = html.Div(id="cross-section-modal", style={
+        'display': 'none', # Hidden by default!
+        'position': 'fixed',
+        'zIndex': '1000', # Force it to the front
+        'left': '0', 'top': '0',
+        'width': '100%', 'height': '100%',
+        'backgroundColor': 'rgba(0,0,0,0.6)', # Darkened background
+        'justifyContent': 'center',
+        'alignItems': 'center'
+    }, children=[
+        html.Div(style={
+            'backgroundColor': 'white',
+            'padding': '40px',
+            'borderRadius': '12px',
+            'maxWidth': '800px',
+            'boxShadow': '0 4px 20px rgba(0,0,0,0.3)',
+            'fontFamily': 'sans-serif'
+        }, children=[
+            html.H2("Cross-Section Plot Explanations", style={'marginTop': '0', 'color': '#2c3e50'}),
+            html.P("Plot usage: Drag the mouse horizontally to zoom in on a section of the x-axis. Zoom in, Zoom out, and Reset tools are located at the top left corner."),
+            html.Ul([
+                html.Li([html.B("Power Profile: "), "Description of the power profile."]),
+                html.Li([html.B("O-mode GMM fit: "), "Description of the O-mode Gaussian Mixture Model fit."]),
+                html.Li([html.B("X-mode GMM fit: "), "Description of the X-mode Gaussian Mixture Model fit."])
+            ], style={'lineHeight': '1.8', 'fontSize': '16px'}),
+            html.Div([
+                html.Button("Close Window", id="close-cs-modal-btn", style={
+                    'marginTop': '20px', 'padding': '10px 20px', 'cursor': 'pointer',
+                    'backgroundColor': '#e74c3c', 'color': 'white', 'border': 'none', 'borderRadius': '5px',
+                    'fontWeight': 'bold', 'fontSize': '16px'
+                })
+            ], style={'textAlign': 'center'})
+        ])
+    ])
+
     return html.Div([
+        cross_section_modal,
+        
         # LEFT PANE (75%)
         html.Div([
-            html.H3("Detailed Plot Dashboard", style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'margin': '5px 0 5px 0'}),
+            html.H2("Detailed Plots", style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'margin': '5px 0 5px 0'}),
+            html.H3("This page plots the different stages of inverion.", style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#333', 'margin': '0 0 15px 0'}),
             
             html.Div([
                 html.Span("Select Panels to Display:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
@@ -310,7 +349,7 @@ def serve_layout():
                     inputStyle={'cursor': 'pointer', 'marginRight': '5px', 'marginLeft': '10px'},
                     labelStyle={'cursor': 'pointer', 'fontSize': '16px', 'fontFamily': 'sans-serif'}
                 )
-            ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '8px 15px', 'backgroundColor': '#f9f9f9', 'borderRadius': '8px', 'width': 'max-content', 'margin': '0 auto 10px auto'}),
+            ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '8px 15px', 'backgroundColor': '#f9f9f9', 'borderRadius': '8px', 'maxWidth': '100%', 'flexWrap': 'wrap', 'margin': '0 auto 10px auto'}),
             
             html.Div([
                 html.Button('Reset Axes', id='reset-view-btn', n_clicks=0,
@@ -339,7 +378,7 @@ def serve_layout():
                     ),
                     style={'flex': '1', 'minWidth': '200px'}
                 )
-            ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '5px 15px', 'width': 'max-content', 'margin': '0 auto 20px auto'}),
+            ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '5px 15px', 'maxWidth': '100%', 'flexWrap': 'wrap', 'margin': '0 auto 20px auto'}),
             
             # Container for the synced ABC subplot figure
             html.Div([
@@ -363,10 +402,32 @@ def serve_layout():
                     'paddingBottom': '20px'
                 }
             ),
+            html.Div([
+                html.H4("Plot usage: Select tools at the top left corner. Click on any pixel in any plot to show the GMM fitting for the corresponding column.", style={'fontFamily': 'sans-serif', 'marginTop': '10px', 'color': '#2c3e50'}),
+                html.H4("Panel Captions", style={'fontFamily': 'sans-serif', 'marginTop': '10px', 'color': '#2c3e50'}),
+                html.Ul([
+                html.Li([html.B("Original Ionogram: "), "VIPIR ionogram presented on a dB scale."]),
+                html.Li([html.B("Inversion result: "), "Green dots and curve represent the control points for the spline and the inverted electron density (Ne) profile, respectively. The red and blue curves are the predicted O and X traces from the inverted Ne profile. The red and blue crosses are the virtual heights of reflection. The inversion process minimizes the Euclidean distance between the predicted trace and its nearest cross."]),
+                html.Li([html.B("Segmented Mask: "), "The segmented masks are shown in red and blue, which are overlaid on top of the binary ionogram shown in black and white pixels. The T-UNet takes the binary ionogram and outputs the O and X masks."]),
+                html.Li([html.B("Reconstructed Otrace and Xtrace: "), "The ionograms are reconstructed by fitting a Gaussian function to the returned power for each frequency and plotting the Gaussian functions."]),
+                # html.Li([html.B("Reconstructed Xtrace: "), "Blue dots: Phase pofile from ISR. Red curve: the predicted phase profile from Ne profile"])
+            ], style={'lineHeight': '1.8', 'fontSize': '16px'})
+            ], style={'padding': '15px', 'backgroundColor': '#f8f9fa', 'borderRadius': '8px', 'borderLeft': '4px solid #3498db', 'marginTop': '10px'})
+            
         ], style={'width': '75%', 'paddingRight': '20px', 'borderRight': '3px solid #ccc', 'display': 'flex', 'flexDirection': 'column'}),
         
         # RIGHT PANE (25%)
         html.Div([
+            # Floating Button Container for Cross-Section
+            html.Div([
+                html.Button("View Cross-Section Explanations", id="open-cs-modal-btn", style={
+                    'padding': '15px 25px', 'cursor': 'pointer',
+                    'backgroundColor': '#3498db', 'color': 'white', 'border': 'none', 'borderRadius': '30px',
+                    'fontWeight': 'bold', 'fontSize': '16px', 'boxShadow': '0 4px 15px rgba(0,0,0,0.3)',
+                    'position': 'fixed', 'bottom': '30px', 'right': '30px', 'zIndex': '999',
+                    'transition': 'transform 0.2s'
+                })
+            ]),
             html.H3("Detail of Selected Column", style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'marginTop': '0', 'color': '#333'}),
             dcc.Graph(
                 id='cross-section-plot',
@@ -747,3 +808,18 @@ def update_cross_section(clickData, search_query):
         updated_plot.update_yaxes(title_text="Power (linear)", row=i_row, col=1, gridcolor='lightgrey')
     updated_plot.update_xaxes(title_text="Height Index", row=1, col=1, gridcolor='lightgrey')
     return updated_plot
+
+# Callback 4: Toggle the Cross-Section Modal Window Open and Closed
+@callback(
+    Output("cross-section-modal", "style"),
+    Input("open-cs-modal-btn", "n_clicks"),
+    Input("close-cs-modal-btn", "n_clicks"),
+    State("cross-section-modal", "style"),
+    prevent_initial_call=True
+)
+def toggle_cs_modal(open_clicks, close_clicks, current_style):
+    if current_style['display'] == 'none':
+        current_style['display'] = 'flex'
+    else:
+        current_style['display'] = 'none'
+    return current_style
