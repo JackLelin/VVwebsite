@@ -1,6 +1,5 @@
 .js-plotly-plot .plotly .modebar-container {
     right: auto !important;
-    /* CRANK THIS WAY UP. If 200 doesn't work, try 400! */
     left: 300px !important; 
     top: 0px !important;
     width: auto !important;

@@ -318,7 +318,19 @@ def serve_layout():
                 html.Button('Reset Axes', id='reset-view-btn', n_clicks=0,
                     style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
                            'cursor': 'pointer', 'borderRadius': '6px', 'border': '1px solid #aaa',
-                           'backgroundColor': '#f0f0f0', 'marginRight': '20px', 'fontWeight': 'bold'}),
+                           'backgroundColor': '#f0f0f0', 'marginRight': '10px', 'fontWeight': 'bold'}),
+                html.Button('Box Zoom', id='box-zoom-btn', n_clicks=0,
+                    style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
+                           'cursor': 'pointer', 'borderRadius': '6px', 'border': '1px solid #aaa',
+                           'backgroundColor': '#e8f4f8', 'marginRight': '10px', 'fontWeight': 'bold'}),
+                html.Button('Pan', id='pan-btn', n_clicks=0,
+                    style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
+                           'cursor': 'pointer', 'borderRadius': '6px', 'border': '1px solid #aaa',
+                           'backgroundColor': '#e8f4f8', 'marginRight': '10px', 'fontWeight': 'bold'}),
+                html.Button('Zoom Out', id='zoom-out-btn', n_clicks=0,
+                    style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
+                           'cursor': 'pointer', 'borderRadius': '6px', 'border': '1px solid #aaa',
+                           'backgroundColor': '#e8f4f8', 'marginRight': '20px', 'fontWeight': 'bold'}),
                 html.Span("Plot Width:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
                 html.Div(
                     dcc.Slider(
@@ -771,3 +783,39 @@ def update_cross_section(clickData, search_query):
         updated_plot.update_yaxes(title_text="Power (linear)", row=i_row, col=1, gridcolor='lightgrey')
     updated_plot.update_xaxes(title_text="Height Index", row=1, col=1, gridcolor='lightgrey')
     return updated_plot
+
+# Callback 4: Change Dragmode (Client-Side Javascript)
+clientside_callback(
+    '''
+    function(zoom_clicks, pan_clicks, out_clicks) {
+        var triggered = dash_clientside.callback_context.triggered;
+        if (!triggered || triggered.length === 0) {
+            return window.dash_clientside.no_update;
+        }
+        var prop_id = triggered[0].prop_id;
+        
+        var graphWrapper = document.getElementById('plot-abc-graph');
+        if (graphWrapper) {
+            var plotlyDiv = graphWrapper.querySelector('.js-plotly-plot');
+            if (plotlyDiv) {
+                if (prop_id === 'pan-btn.n_clicks') {
+                    Plotly.relayout(plotlyDiv, {dragmode: 'pan'});
+                } else if (prop_id === 'box-zoom-btn.n_clicks') {
+                    Plotly.relayout(plotlyDiv, {dragmode: 'zoom'});
+                } else if (prop_id === 'zoom-out-btn.n_clicks') {
+                    var outBtn = plotlyDiv.querySelector('[data-title="Zoom out"]');
+                    if (outBtn) {
+                        outBtn.click();
+                    }
+                }
+            }
+        }
+        return window.dash_clientside.no_update;
+    }
+    ''',
+    Output('box-zoom-btn', 'style'), # Dummy output since we use Plotly.relayout directly
+    Input('box-zoom-btn', 'n_clicks'),
+    Input('pan-btn', 'n_clicks'),
+    Input('zoom-out-btn', 'n_clicks'),
+    prevent_initial_call=True
+)
