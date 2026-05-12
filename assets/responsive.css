@@ -1,0 +1,55 @@
+/* assets/responsive.css */
+@media screen and (max-width: 1400px) {
+    .dashboard-main-container {
+        flex-direction: column !important;
+    }
+    
+    .dashboard-left-pane {
+        width: 100% !important;
+        padding-right: 0 !important;
+        border-right: none !important;
+        border-bottom: 3px solid #ccc !important;
+        padding-bottom: 20px !important;
+        margin-bottom: 20px !important;
+    }
+    
+    .dashboard-right-pane {
+        width: 100% !important;
+        padding-left: 0 !important;
+    }
+}
+
+/* Ensure text and headings scale reasonably */
+@media screen and (max-width: 900px) {
+    h2 { font-size: 1.5rem !important; }
+    h3 { font-size: 1.25rem !important; }
+    body { font-size: 14px !important; }
+}
+
+/* Force horizontal scrollbar to always show on webkit browsers (macOS fix) */
+#left-plots-container::-webkit-scrollbar {
+    -webkit-appearance: none;
+    height: 20px; /* Thicker scrollbar */
+}
+
+#left-plots-container::-webkit-scrollbar-thumb {
+    background-color: #3498db; /* Vibrant blue color to make it very noticeable */
+    border-radius: 10px;
+    border: 3px solid #f8f9fa; /* Thicker border to match background */
+}
+
+#left-plots-container::-webkit-scrollbar-thumb:hover {
+    background-color: #2980b9; /* Slightly darker blue on hover */
+}
+
+#left-plots-container::-webkit-scrollbar-track {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.1); /* Give the track some depth */
+}
+
+/* Make legends pass-through for mouse interactions so they don't block hovering or dragging */
+.no-hover-legend .legend,
+.no-hover-legend .legend * {
+    pointer-events: none !important;
+}

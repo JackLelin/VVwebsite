@@ -84,10 +84,10 @@ def plot_inversion_result(fig, data, col_idx, legend_name):
     fvsX = data['vipir_inversion_fvsX']
     vhsX = data['vipir_inversion_vhsX']
     
-    fig.add_trace(go.Scatter(x=fps, y=Z, mode='lines', line=dict(color='darkgreen'), name='spline fp', legend=legend_name), row=1, col=col_idx)
-    fig.add_trace(go.Scatter(x=x_vals, y=z, mode='markers', marker=dict(color='green', size=6), name='spline node', legend=legend_name), row=1, col=col_idx)
-    fig.add_trace(go.Scatter(x=fvsO, y=vhsO, mode='lines', line=dict(color='red'), name='O-trace hv', legend=legend_name), row=1, col=col_idx)
-    fig.add_trace(go.Scatter(x=fvsX, y=vhsX, mode='lines', line=dict(color='blue'), name='X-trace hv', legend=legend_name), row=1, col=col_idx)
+    fig.add_trace(go.Scattergl(x=fps, y=Z, mode='lines', line=dict(color='darkgreen'), name='fp profile', legend=legend_name), row=1, col=col_idx)
+    fig.add_trace(go.Scattergl(x=x_vals, y=z, mode='markers', marker=dict(color='green', size=6), name='fp spline node', legend=legend_name), row=1, col=col_idx)
+    fig.add_trace(go.Scattergl(x=fvsO, y=vhsO, mode='lines', line=dict(color='red'), name='O-trace hv', legend=legend_name), row=1, col=col_idx)
+    fig.add_trace(go.Scattergl(x=fvsX, y=vhsX, mode='lines', line=dict(color='blue'), name='X-trace hv', legend=legend_name), row=1, col=col_idx)
 
     f_idx_o = data['filtered_idx_o']
     f_idx_x = data['filtered_idx_x']
@@ -96,11 +96,11 @@ def plot_inversion_result(fig, data, col_idx, legend_name):
 
     idx_x_ints = np.round(f_idx_x).astype(int)
     mu_x_ints  = np.round(f_mu_x).astype(int)
-    fig.add_trace(go.Scatter(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x-thin', size=7, line=dict(width=1.5, color='blue')), name='X-mode peak', legend=legend_name), row=1, col=col_idx)
+    fig.add_trace(go.Scattergl(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x-thin', size=7, line=dict(width=1.5, color='blue')), name='X-mode peak', legend=legend_name), row=1, col=col_idx)
     
     idx_o_ints = np.round(f_idx_o).astype(int)
     mu_o_ints  = np.round(f_mu_o).astype(int)
-    fig.add_trace(go.Scatter(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='x-thin', size=7, line=dict(width=1.5, color='red')), name='O-mode peak', legend=legend_name), row=1, col=col_idx)
+    fig.add_trace(go.Scattergl(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='x-thin', size=7, line=dict(width=1.5, color='red')), name='O-mode peak', legend=legend_name), row=1, col=col_idx)
 
 
 def plot_thinned_traces(fig, data, col_idx, legend_name):
@@ -124,11 +124,11 @@ def plot_thinned_traces(fig, data, col_idx, legend_name):
 
     idx_x_ints = np.round(f_idx_x).astype(int)
     mu_x_ints  = np.round(f_mu_x).astype(int)
-    fig.add_trace(go.Scatter(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x', color='blue', size=6), name='X-mode', legend=legend_name), row=1, col=col_idx)
+    fig.add_trace(go.Scattergl(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x', color='blue', size=6), name='X-mode', legend=legend_name), row=1, col=col_idx)
     
     idx_o_ints = np.round(f_idx_o).astype(int)
     mu_o_ints  = np.round(f_mu_o).astype(int)
-    fig.add_trace(go.Scatter(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='x', color='red', size=6), name='O-mode', legend=legend_name), row=1, col=col_idx)
+    fig.add_trace(go.Scattergl(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='x', color='red', size=6), name='O-mode', legend=legend_name), row=1, col=col_idx)
 
 def plot_segmented_mask(fig, data, col_idx, legend_name):
     """Plotting segmented mask from T-UNet o-mode and x-mode"""
@@ -269,7 +269,7 @@ def plot_reconstructed_O(fig, data, col_idx, legend_name):
 #     x_data = data['my_x_key']
 #     y_data = data['my_y_key']
 #     fig.add_trace(
-#         go.Scatter(
+#         go.Scattergl(
 #             x=x_data, y=y_data,
 #             mode='lines+markers',    # or 'lines', 'markers'
 #             line=dict(color='red'),
@@ -295,44 +295,7 @@ PLOT_CONFIG = [
 ]
 
 def serve_layout():
-    # 1. Define the Pop-Up Modal Window for Cross-Section Explanations
-    cross_section_modal = html.Div(id="cross-section-modal", style={
-        'display': 'none', # Hidden by default!
-        'position': 'fixed',
-        'zIndex': '1000', # Force it to the front
-        'left': '0', 'top': '0',
-        'width': '100%', 'height': '100%',
-        'backgroundColor': 'rgba(0,0,0,0.6)', # Darkened background
-        'justifyContent': 'center',
-        'alignItems': 'center'
-    }, children=[
-        html.Div(style={
-            'backgroundColor': 'white',
-            'padding': '40px',
-            'borderRadius': '12px',
-            'maxWidth': '800px',
-            'boxShadow': '0 4px 20px rgba(0,0,0,0.3)',
-            'fontFamily': 'sans-serif'
-        }, children=[
-            html.H2("Cross-Section Plot Explanations", style={'marginTop': '0', 'color': '#2c3e50'}),
-            html.P("Plot usage: Drag the mouse horizontally to zoom in on a section of the x-axis. Zoom in, Zoom out, and Reset tools are located at the top left corner."),
-            html.Ul([
-                html.Li([html.B("Power Profile: "), "Description of the power profile."]),
-                html.Li([html.B("O-mode GMM fit: "), "Description of the O-mode Gaussian Mixture Model fit."]),
-                html.Li([html.B("X-mode GMM fit: "), "Description of the X-mode Gaussian Mixture Model fit."])
-            ], style={'lineHeight': '1.8', 'fontSize': '16px'}),
-            html.Div([
-                html.Button("Close Window", id="close-cs-modal-btn", style={
-                    'marginTop': '20px', 'padding': '10px 20px', 'cursor': 'pointer',
-                    'backgroundColor': '#e74c3c', 'color': 'white', 'border': 'none', 'borderRadius': '5px',
-                    'fontWeight': 'bold', 'fontSize': '16px'
-                })
-            ], style={'textAlign': 'center'})
-        ])
-    ])
-
     return html.Div([
-        cross_section_modal,
         
         # LEFT PANE (75%)
         html.Div([
@@ -360,7 +323,7 @@ def serve_layout():
                 html.Div(
                     dcc.Slider(
                         id='plot-size-slider',
-                        min=200, max=1000, step=50, value=500,
+                        min=10, max=100, step=1, value=25,
                         marks=None,
                         tooltip={"placement": "bottom", "always_visible": True},
                         updatemode='mouseup'
@@ -371,7 +334,7 @@ def serve_layout():
                 html.Div(
                     dcc.Slider(
                         id='plot-height-slider',
-                        min=200, max=1000, step=50, value=600,
+                        min=10, max=100, step=1, value=30,
                         marks=None,
                         tooltip={"placement": "bottom", "always_visible": True},
                         updatemode='mouseup'
@@ -386,7 +349,7 @@ def serve_layout():
                     dcc.Graph(
                         id='plot-abc-graph', 
                         style={'width': '100%', 'height': '100%'},
-                        config={'doubleClick': False, 'scrollZoom': True, 'modeBarButtonsToRemove': ['autoScale2d'], 'displayModeBar': True}
+                        config={'doubleClick': False, 'scrollZoom': False, 'modeBarButtonsToRemove': ['autoScale2d', 'lasso2d', 'select2d'], 'displayModeBar': True}
                     ), 
                     id='plot-abc-wrapper', 
                     style={'display': 'block', 'flexShrink': 0}
@@ -410,42 +373,41 @@ def serve_layout():
                 html.Li([html.B("Inversion result: "), "Green dots and curve represent the control points for the spline and the inverted electron density (Ne) profile, respectively. The red and blue curves are the predicted O and X traces from the inverted Ne profile. The red and blue crosses are the virtual heights of reflection. The inversion process minimizes the Euclidean distance between the predicted trace and its nearest cross."]),
                 html.Li([html.B("Segmented Mask: "), "The segmented masks are shown in red and blue, which are overlaid on top of the binary ionogram shown in black and white pixels. The T-UNet takes the binary ionogram and outputs the O and X masks."]),
                 html.Li([html.B("Reconstructed Otrace and Xtrace: "), "The ionograms are reconstructed by fitting a Gaussian function to the returned power for each frequency and plotting the Gaussian functions."]),
-                # html.Li([html.B("Reconstructed Xtrace: "), "Blue dots: Phase pofile from ISR. Red curve: the predicted phase profile from Ne profile"])
             ], style={'lineHeight': '1.8', 'fontSize': '16px'})
             ], style={'padding': '15px', 'backgroundColor': '#f8f9fa', 'borderRadius': '8px', 'borderLeft': '4px solid #3498db', 'marginTop': '10px'})
             
-        ], style={'width': '75%', 'paddingRight': '20px', 'borderRight': '3px solid #ccc', 'display': 'flex', 'flexDirection': 'column'}),
+        ], className="dashboard-left-pane", style={'width': '75%', 'paddingRight': '20px', 'borderRight': '3px solid #ccc', 'display': 'flex', 'flexDirection': 'column'}),
         
         # RIGHT PANE (25%)
         html.Div([
-            # Floating Button Container for Cross-Section
-            html.Div([
-                html.Button("View Cross-Section Explanations", id="open-cs-modal-btn", style={
-                    'padding': '15px 25px', 'cursor': 'pointer',
-                    'backgroundColor': '#3498db', 'color': 'white', 'border': 'none', 'borderRadius': '30px',
-                    'fontWeight': 'bold', 'fontSize': '16px', 'boxShadow': '0 4px 15px rgba(0,0,0,0.3)',
-                    'position': 'fixed', 'bottom': '30px', 'right': '30px', 'zIndex': '999',
-                    'transition': 'transform 0.2s'
-                })
-            ]),
             html.H3("Detail of Selected Column", style={'textAlign': 'center', 'fontFamily': 'sans-serif', 'marginTop': '0', 'color': '#333'}),
             dcc.Graph(
                 id='cross-section-plot',
+                className='no-hover-legend',
                 figure=make_subplots(
                     rows=3, cols=1,
                     shared_xaxes=True, shared_yaxes=False,
                     subplot_titles=["Click on the plots to see details of a column", "", ""],
                     vertical_spacing=0.1
                 ),
-                style={'width': '100%', 'height': '750px'}, # Fixed height for column stack
-                config={'doubleClick': 'reset', 'modeBarButtonsToRemove': ['autoScale2d'], 'displayModeBar': True}
-            )
+                style={'width': '100%', 'height': '85vh'}, # Increased height
+                config={'doubleClick': 'reset', 'scrollZoom': False, 'modeBarButtonsToRemove': ['autoScale2d', 'lasso2d', 'select2d'], 'displayModeBar': True}
+            ),
+            
+            # Explanations block matching fig_abc style
+            html.Div([
+                html.H4("Cross-Section Plot Explanations", style={'fontFamily': 'sans-serif', 'marginTop': '10px', 'color': '#2c3e50'}),
+                html.P("Plot usage: Drag the mouse horizontally to zoom in on a section of the x-axis. Zoom in, Zoom out, and Reset tools are located at the top left corner.", style={'fontFamily': 'sans-serif', 'fontSize': '14px'}),
+                html.Ul([
+                    html.Li([html.B("Power Profile: "), "Description of the power profile."]),
+                    html.Li([html.B("O-mode GMM fit: "), "Description of the O-mode Gaussian Mixture Model fit."]),
+                    html.Li([html.B("X-mode GMM fit: "), "Description of the X-mode Gaussian Mixture Model fit."])
+                ], style={'lineHeight': '1.8', 'fontSize': '14px'})
+            ], style={'padding': '15px', 'backgroundColor': '#f8f9fa', 'borderRadius': '8px', 'borderLeft': '4px solid #3498db', 'marginTop': '10px'})
 
-
-            # More plots can be added here easily in a column!
-        ], style={'width': '25%', 'paddingLeft': '20px', 'display': 'flex', 'flexDirection': 'column', 'gap': '20px'})
+        ], className="dashboard-right-pane", style={'width': '25%', 'paddingLeft': '20px', 'display': 'flex', 'flexDirection': 'column', 'gap': '20px'})
         
-    ], style={'display': 'flex', 'flexDirection': 'row', 'width': '100%', 'padding': '20px', 'boxSizing': 'border-box'})
+    ], className="dashboard-main-container", style={'display': 'flex', 'flexDirection': 'row', 'width': '100%', 'padding': '20px', 'boxSizing': 'border-box'})
 
 # --- 4. Callbacks ---
 
@@ -460,8 +422,8 @@ clientside_callback(
         if (anyABC) {
             return {
                 'display': 'block',
-                'width': (width * abcCount) + 'px',
-                'height': height + 'px',
+                'width': (width * abcCount) + 'vw',
+                'height': height + 'vw',
                 'flexShrink': 0
             };
         } else {
@@ -639,16 +601,16 @@ def update_cross_section(clickData, search_query):
     )
 
     updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='black'), name='Power (linear)', legend='legend1'),
+        go.Scattergl(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='black'), name='Power (linear)', legend='legend1'),
         row=1, col=1
     )
     updated_plot.add_trace(
-        go.Scatter(x=[y_idx], y=[org[y_idx, x_idx]], mode='markers', marker=dict(color='red', size=8), name='Clicked Point', legend='legend1'),
+        go.Scattergl(x=[y_idx], y=[org[y_idx, x_idx]], mode='markers', marker=dict(color='red', size=8), name='Clicked Point', legend='legend1'),
         row=1, col=1
     )
 
     updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='grey'), name='Power', legend='legend2'),
+        go.Scattergl(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='grey'), name='Power', legend='legend2'),
         row=2, col=1
     )
     updated_plot.add_trace(
@@ -657,7 +619,7 @@ def update_cross_section(clickData, search_query):
     )
 
     updated_plot.add_trace(
-        go.Scatter(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='grey'), name='Power', legend='legend3'),
+        go.Scattergl(x=np.arange(20, hts.shape[0]), y=col_data[20:], mode='lines', line=dict(color='grey'), name='Power', legend='legend3'),
         row=3, col=1
     )
     updated_plot.add_trace(
@@ -697,14 +659,14 @@ def update_cross_section(clickData, search_query):
             comp_name = 'Major Component' if is_major else f'Minor Component'
             
             updated_plot.add_trace(
-                go.Scatter(x=x_axis_o, y=pdf, mode='lines', line=dict(color=comp_color, width=comp_width), name=comp_name, legend='legend2'),
+                go.Scattergl(x=x_axis_o, y=pdf, mode='lines', line=dict(color=comp_color, width=comp_width), name=comp_name, legend='legend2'),
                 row=2, col=1
             ) 
             gmm_sum_o += pdf
 
         # Changed the sum trace to a dotted black line so it contrasts nicely against the grey minor components!
         updated_plot.add_trace(
-            go.Scatter(x=x_axis_o, y=gmm_sum_o, mode='lines', line=dict(color='black', width=2, dash='dot'), name=f'Sum of Components', legend='legend2'), 
+            go.Scattergl(x=x_axis_o, y=gmm_sum_o, mode='lines', line=dict(color='black', width=2, dash='dot'), name=f'Sum of Components', legend='legend2'), 
             row=2, col=1
         )
 
@@ -740,14 +702,14 @@ def update_cross_section(clickData, search_query):
             comp_name = 'Major Component' if is_major else f'Minor Component'
             
             updated_plot.add_trace(
-                go.Scatter(x=x_axis_x, y=pdf, mode='lines', line=dict(color=comp_color, width=comp_width), name=comp_name, legend='legend3'),
+                go.Scattergl(x=x_axis_x, y=pdf, mode='lines', line=dict(color=comp_color, width=comp_width), name=comp_name, legend='legend3'),
                 row=3, col=1
             ) 
             gmm_sum_x += pdf
 
         # Changed the sum trace to a dotted black line so it contrasts nicely against the grey minor components!
         updated_plot.add_trace(
-            go.Scatter(x=x_axis_x, y=gmm_sum_x, mode='lines', line=dict(color='black', width=2, dash='dot'), name=f'Sum of Components', legend='legend3'), 
+            go.Scattergl(x=x_axis_x, y=gmm_sum_x, mode='lines', line=dict(color='black', width=2, dash='dot'), name=f'Sum of Components', legend='legend3'), 
             row=3, col=1
         )
 
@@ -767,7 +729,7 @@ def update_cross_section(clickData, search_query):
             row=2, col=1)
     # Dummy trace to generate the legend entry for the O-mask shaded regions
     updated_plot.add_trace(
-        go.Scatter(x=[None], y=[None], mode='markers', marker=dict(color='LightPink', size=12, symbol='square'), name='O-mask', legend='legend1'),
+        go.Scattergl(x=[None], y=[None], mode='markers', marker=dict(color='LightPink', size=12, symbol='square'), name='O-mask', legend='legend1'),
         row=1, col=1
     )
 
@@ -787,11 +749,12 @@ def update_cross_section(clickData, search_query):
         
     # Dummy trace to generate the legend entry for the X-mask shaded regions
     updated_plot.add_trace(
-        go.Scatter(x=[None], y=[None], mode='markers', marker=dict(color='LightSkyBlue', size=12, symbol='square'), name='X-mask', legend='legend1'),
+        go.Scattergl(x=[None], y=[None], mode='markers', marker=dict(color='LightSkyBlue', size=12, symbol='square'), name='X-mask', legend='legend1'),
         row=1, col=1
     )
 
-    legend_style = dict(yanchor="top",xanchor="left", x=0.02, bgcolor="rgba(255,255,255,0.7)", font=dict(size=10))
+    # Use horizontal orientation, smaller font, and semi-transparent background
+    legend_style = dict(yanchor="top", xanchor="left", x=0.01, orientation="h", bgcolor="rgba(255,255,255,0.5)", font=dict(size=9), itemclick=False, itemdoubleclick=False)
     layout_update = dict(margin=dict(l=10, r=10, t=60, b=10), showlegend=True, 
         plot_bgcolor='white',
         paper_bgcolor='white')
@@ -799,7 +762,7 @@ def update_cross_section(clickData, search_query):
     for i_row in range(1, 4):
         axis_key = 'yaxis' if i_row == 1 else f'yaxis{i_row}'
         b_domain = updated_plot.layout[axis_key].domain
-        layout_update[f'legend{i_row}'] = dict(**legend_style, y=b_domain[1] - 0.01)
+        layout_update[f'legend{i_row}'] = dict(**legend_style, y=b_domain[1])
     
     updated_plot.update_layout(**layout_update)
 
@@ -808,18 +771,3 @@ def update_cross_section(clickData, search_query):
         updated_plot.update_yaxes(title_text="Power (linear)", row=i_row, col=1, gridcolor='lightgrey')
     updated_plot.update_xaxes(title_text="Height Index", row=1, col=1, gridcolor='lightgrey')
     return updated_plot
-
-# Callback 4: Toggle the Cross-Section Modal Window Open and Closed
-@callback(
-    Output("cross-section-modal", "style"),
-    Input("open-cs-modal-btn", "n_clicks"),
-    Input("close-cs-modal-btn", "n_clicks"),
-    State("cross-section-modal", "style"),
-    prevent_initial_call=True
-)
-def toggle_cs_modal(open_clicks, close_clicks, current_style):
-    if current_style['display'] == 'none':
-        current_style['display'] = 'flex'
-    else:
-        current_style['display'] = 'none'
-    return current_style
