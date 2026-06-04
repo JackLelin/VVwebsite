@@ -154,7 +154,7 @@ def plot_segmented_mask(fig, data, col_idx, legend_name):
     fig.add_trace(
         go.Heatmap(
             z=maskO, x=freqs, y=hts,
-            colorscale=red_mask_scale, zmin=0, zmax=1, opacity=0.5,
+            colorscale=red_mask_scale, zmin=0, zmax=1, opacity=1,
             showscale=False, name='O-mode', showlegend=True, legend=legend_name
         ),
         row=1, col=col_idx
@@ -162,7 +162,7 @@ def plot_segmented_mask(fig, data, col_idx, legend_name):
     fig.add_trace(
         go.Heatmap(
             z=maskX, x=freqs, y=hts,
-            colorscale=blue_mask_scale, zmin=0, zmax=1, opacity=0.5,
+            colorscale=blue_mask_scale, zmin=0, zmax=1, opacity=1,
             showscale=False, name='X-mode', showlegend=True, legend=legend_name
         ),
         row=1, col=col_idx
