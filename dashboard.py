@@ -8,7 +8,7 @@ import numpy as np
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-consolidate_dir = os.path.join(BASE_DIR, "assets/Consolidate_result/") # directory where npy files are stored
+consolidated_dir = os.path.join(BASE_DIR, "assets/Inversion_result_npy/") # directory where npy files are stored
 
 # --- Helper function stub ---
 # You used this in matplotlib but did not define it! I provided a fallback so it doesn't crash.
@@ -140,12 +140,13 @@ def plot_segmented_mask(fig, data, col_idx, legend_name):
     # 1. Background heatmap
     fig.add_trace(
         go.Heatmap(
-            z=binary_ionogram, x=freqs, y=hts,
+            z= binary_ionogram, x=freqs, y=hts,
             colorscale='Greys', reversescale=True, zmin=0, zmax=1,
             showscale=False, name='Background', showlegend=False, legend=legend_name
         ),
         row=1, col=col_idx
     )
+
     # Define custom colorscales for transparency                               
     # [0, 'rgba(r,g,b,alpha)'] -> 0 is transparent                             
     # [1, 'rgba(r,g,b,alpha)'] -> 1 is opaque                                  
@@ -154,7 +155,7 @@ def plot_segmented_mask(fig, data, col_idx, legend_name):
     fig.add_trace(
         go.Heatmap(
             z=maskO, x=freqs, y=hts,
-            colorscale=red_mask_scale, zmin=0, zmax=1, opacity=1,
+            colorscale=red_mask_scale, zmin=0, zmax=1, opacity=0.9,
             showscale=False, name='O-mode', showlegend=True, legend=legend_name
         ),
         row=1, col=col_idx
@@ -162,8 +163,19 @@ def plot_segmented_mask(fig, data, col_idx, legend_name):
     fig.add_trace(
         go.Heatmap(
             z=maskX, x=freqs, y=hts,
-            colorscale=blue_mask_scale, zmin=0, zmax=1, opacity=1,
+            colorscale=blue_mask_scale, zmin=0, zmax=1, opacity=0.9,
             showscale=False, name='X-mode', showlegend=True, legend=legend_name
+        ),
+        row=1, col=col_idx
+    )
+
+    # Use a black-to-white colorscale so the background (z=1) is black and signal (z=0) is white
+    black_bg_scale=[[0, 'rgba(255,255,255,0)'], [1, 'rgba(255,255,255,1)']]
+    fig.add_trace(
+        go.Heatmap(
+            z=1-binary_ionogram, x=freqs, y=hts, opacity=0.1,
+            colorscale=black_bg_scale, reversescale=True, zmin=0, zmax=1,
+            showscale=False, name='Background', showlegend=False, legend=legend_name
         ),
         row=1, col=col_idx
     )
@@ -286,7 +298,7 @@ PLOT_CONFIG = [
     {'id': 'a', 'label': 'Original Ionogram',  'plot_func': plot_original_ionogram},
     {'id': 'b', 'label': 'Inversion Result',    'plot_func': plot_inversion_result},
     # {'id': 'c', 'label': 'Thinned Traces',      'plot_func': plot_thinned_traces},
-    {'id': 'd', 'label': 'Segmented Mask',      'plot_func': plot_segmented_mask},
+    {'id': 'd', 'label': 'Segmented Mask and Binary Ionogram',      'plot_func': plot_segmented_mask},
     {'id': 'e', 'label': 'Reconstructed Ionogram', 'plot_func': plot_reconstructed_ionogram},
     {'id': 'f', 'label': 'Reconstructed Otrace', 'plot_func': plot_reconstructed_O},
     {'id': 'g', 'label': 'Reconstructed Xtrace', 'plot_func': plot_reconstructed_X},
@@ -469,7 +481,7 @@ def generate_all_plots(search_query, selected_panels, reset_clicks):
     
     filename = parsed['image'][0]
     npy_filename = filename.replace('.png', '.npy')
-    filepath = os.path.join(consolidate_dir, npy_filename)
+    filepath = os.path.join(consolidated_dir, npy_filename)
 
     if not os.path.exists(filepath):
         return empty_abc
@@ -581,7 +593,7 @@ def update_cross_section(clickData, search_query):
         
     filename = parsed['image'][0]
     npy_filename = filename.replace('.png', '.npy')
-    filepath = os.path.join(consolidate_dir, npy_filename)
+    filepath = os.path.join(consolidated_dir, npy_filename)
     
     if not os.path.exists(filepath):
         return no_update
