@@ -311,7 +311,7 @@ def serve_layout():
         
         # LEFT PANE (75%)
         html.Div([
-            html.H2("Detailed Plots", style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'margin': '5px 0 5px 0'}),
+            html.H2("Detailed Plots", id="dashboard-title", style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'margin': '5px 0 5px 0'}),
             html.H3("This page plots the different stages of inverion.", style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#333', 'margin': '0 0 15px 0'}),
             
             html.Div([
@@ -465,6 +465,7 @@ clientside_callback(
 # Callback 2: Load Data & Generate Plots (runs on page load, toggle change, or reset)
 @callback(
     Output('plot-abc-graph', 'figure'),
+    Output('dashboard-title', 'children'),
     Input('url', 'search'),
     Input('plot-toggles', 'value'),
     Input('reset-view-btn', 'n_clicks'),
@@ -474,21 +475,30 @@ def generate_all_plots(search_query, selected_panels, reset_clicks, box_zoom_sty
     empty_abc = make_subplots(rows=1, cols=1).update_layout(title="No data loaded")
     
     if not search_query:
-        return empty_abc
+        return empty_abc, "Detailed Plots"
         
     parsed = urllib.parse.parse_qs(search_query.lstrip('?'))
     if 'image' not in parsed:
-        return empty_abc
+        return empty_abc, "Detailed Plots"
     
     filename = parsed['image'][0]
     np_filename = filename.replace('.png', '.npz')
     filepath = os.path.join(consolidated_dir, np_filename)
 
     if not os.path.exists(filepath):
-        return empty_abc
+        return empty_abc, f"Detailed Plots: {filename} (Data not found)"
         
     # Load data ONCE
     data = dict(np.load(filepath, allow_pickle=True))
+    
+    timestruct = data['vipir_vipirTimeSct']
+    temp_hour = timestruct['start_hour'][0]
+    temp_day = timestruct['start_day'][0]
+    if temp_hour < 5:
+        temp_hour = temp_hour + 24 - 5
+        temp_day = temp_day - 1
+    localtime = f"LT: {timestruct['start_year'][0]:4d}.{timestruct['start_month'][0]:02d}.{temp_day:02d} {temp_hour:02d}:{timestruct['start_minute'][0]:02d}:{timestruct['start_second'][0]:02d}"
+
     freqs = data['vipir_freqs']
     hts = data['vipir_hts']
     
@@ -570,8 +580,7 @@ def generate_all_plots(search_query, selected_panels, reset_clicks, box_zoom_sty
     # Set explicit axis limits (propagates to all subplots via shared/matched axes)
     fig_abc.update_xaxes(range=[freqs.min(), freqs.max()], autorange=False, row=1, col=1)
     fig_abc.update_yaxes(range=[hts.min(), hts.max()], autorange=False, row=1, col=1)
-    
-    return fig_abc
+    return fig_abc, f"Detailed Plots: {np_filename}  |  {localtime}"
 
 def gaussian(x, A, mu, sigma):
     return A * np.exp(-(x - mu)**2 / (2 * sigma**2))

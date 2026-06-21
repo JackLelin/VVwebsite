@@ -40,13 +40,17 @@ vipir_app.layout = serve_master_layout
 # The Router Callback
 @vipir_app.callback(
     Output('page-content', 'children'),
-    Input('url', 'pathname')
+    Input('url', 'pathname'),
+    Input('url', 'search')
 )
-def display_page(pathname):
+def display_page(pathname, search):
     # Use .endswith() so it safely catches both '/dashboard' and 
     # '/vipir_inversion/dashboard' regardless of where it is hosted.
     if pathname and pathname.endswith('/dashboard'):
         # Render the detailed plot view
+        return dashboard.serve_layout()
+    elif search and 'image=' in search:
+        # User went directly to /?image=...
         return dashboard.serve_layout()
     else:
         # Default to the gallery (Main Entrance)

@@ -9,7 +9,7 @@ This is a web application built with Plotly Dash to visualize the different stag
 
 ## Data Setup
 
-The `assets` folder currently contains only one example file. To use the dashboard with the data downloaded from the databank, place the actual `.npy` files into the `assets/Inversion_result_npy/` directory.
+The `assets` folder currently contains all inversion for Jan 14 2016. To use the dashboard with the data of other days downloaded from the databank, place the actual `.npz` files into the `assets/Inversion_result_npz/` directory.
 
 ## Requirements
 

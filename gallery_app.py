@@ -1,6 +1,7 @@
 import os
 import glob
-from dash import html, dcc, Input, Output, State, callback
+import json
+from dash import html, dcc, Input, Output, State, callback, ALL, ctx, no_update
 
 # ==========================================
 # CONFIGURATION
@@ -43,9 +44,10 @@ def serve_layout():
 
         # Create a card for each image
         image_card_container = html.Div([
-            html.A(
-                href=f"dashboard?image={filename}", # Link to the detailed plot page
-                target="_blank", # Open in a new tab
+            html.Div(
+                id={'type': 'gallery-image', 'index': filename},
+                n_clicks=0,
+                style={'cursor': 'pointer'},
                 children=[
                     dcc.Markdown(
                         f'<img src="/vipir_inversion/assets/{TARGET_GALLERY_SUBDIR}/{filename}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
@@ -53,15 +55,29 @@ def serve_layout():
                     )
                 ]
             ),
-            html.P(filename, style={
-                'textAlign': 'center', 
-                'marginTop': '15px', 
-                'fontFamily': 'sans-serif',
-                'fontSize': '14px',
-                'fontWeight': 'bold',
-                'color': '#444',
-                'wordBreak': 'break-all'
-            })
+            html.Div([
+                html.P(filename, style={
+                    'textAlign': 'center', 
+                    'margin': '0', 
+                    'fontFamily': 'sans-serif',
+                    'fontSize': '14px',
+                    'fontWeight': 'bold',
+                    'color': '#444',
+                    'wordBreak': 'break-all'
+                }),
+                html.A(
+                    "Open full dashboard in new tab ↗", 
+                    href=f"dashboard?image={filename}", 
+                    target="_blank", 
+                    style={
+                        'fontSize': '12px', 
+                        'textDecoration': 'none', 
+                        'color': '#3498db', 
+                        'marginTop': '8px',
+                        'fontWeight': 'bold'
+                    }
+                )
+            ], style={'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'marginTop': '15px'})
         ], style={
             'backgroundColor': 'white',
             'padding': '15px',
@@ -112,8 +128,56 @@ def serve_layout():
         ])
     ])
 
-    # 4. Return the full layout
+    # 4. Define the Dashboard Modal Window
+    dashboard_modal = html.Div(
+        id="dashboard-modal",
+        style={
+            'display': 'none', 
+            'position': 'fixed',
+            'zIndex': '1050',
+            'left': '0', 'top': '0',
+            'width': '100vw', 'height': '100vh',
+            'backgroundColor': 'rgba(0,0,0,0.8)',
+            'justifyContent': 'center',
+            'alignItems': 'center',
+            'padding': '10px',
+            'boxSizing': 'border-box'
+        },
+        children=[
+            html.Div(
+                style={
+                    'backgroundColor': 'white',
+                    'width': '99%',
+                    'height': '99%',
+                    'borderRadius': '8px',
+                    'boxShadow': '0 4px 20px rgba(0,0,0,0.5)',
+                    'overflow': 'hidden',
+                    'position': 'relative',
+                    'display': 'flex',
+                    'flexDirection': 'column'
+                },
+                children=[
+                    html.Button("✖", id="close-dashboard-btn", n_clicks=0, style={
+                        'position': 'absolute', 'top': '5px', 'left': '5px', 'zIndex': '1000',
+                        'width': '35px', 'height': '35px', 'borderRadius': '50%',
+                        'backgroundColor': '#e74c3c', 'color': 'white', 'border': 'none',
+                        'fontWeight': 'bold', 'fontSize': '16px', 'cursor': 'pointer',
+                        'boxShadow': '0 2px 5px rgba(0,0,0,0.3)', 'display': 'flex',
+                        'justifyContent': 'center', 'alignItems': 'center', 'padding': '0'
+                    }),
+                    html.Iframe(
+                        id="dashboard-iframe",
+                        src="",
+                        style={'flex': '1', 'width': '100%', 'border': 'none'}
+                    )
+                ]
+            )
+        ]
+    )
+
+    # 5. Return the full layout
     return html.Div([
+        dashboard_modal, # INJECT THE DASHBOARD MODAL
         caption_modal, # INJECT THE MODAL INTO THE LAYOUT
         
         # Header Area
@@ -157,3 +221,47 @@ def toggle_modal(open_clicks, close_clicks, current_style):
     else:
         current_style['display'] = 'none' # Hide it
     return current_style
+
+# CALLBACK: Toggle Dashboard Modal using Iframe
+@callback(
+    Output("dashboard-modal", "style"),
+    Output("dashboard-iframe", "src"),
+    Input({'type': 'gallery-image', 'index': ALL}, 'n_clicks'),
+    Input("close-dashboard-btn", "n_clicks"),
+    State("dashboard-modal", "style"),
+    prevent_initial_call=True
+)
+def toggle_dashboard_modal(n_clicks_list, close_clicks, current_style):
+    if not ctx.triggered:
+        return no_update, no_update
+    
+    trigger_id = ctx.triggered[0]['prop_id']
+    
+    if 'close-dashboard-btn' in trigger_id:
+        if not current_style:
+            current_style = {}
+        current_style['display'] = 'none'
+        return current_style, ""
+        
+    if 'gallery-image' in trigger_id:
+        if not any(n_clicks_list):
+            return no_update, no_update
+            
+        trigger_dict = json.loads(trigger_id.rsplit('.', 1)[0])
+        filename = trigger_dict['index']
+        
+        style = {
+            'display': 'flex', 
+            'position': 'fixed',
+            'zIndex': '1050',
+            'left': '0', 'top': '0',
+            'width': '100vw', 'height': '100vh',
+            'backgroundColor': 'rgba(0,0,0,0.8)',
+            'justifyContent': 'center',
+            'alignItems': 'center',
+            'padding': '10px',
+            'boxSizing': 'border-box'
+        }
+        return style, f"dashboard?image={filename}"
+        
+    return no_update, no_update
