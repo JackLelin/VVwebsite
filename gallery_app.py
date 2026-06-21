@@ -47,7 +47,7 @@ def serve_layout():
             html.Div(
                 id={'type': 'gallery-image', 'index': filename},
                 n_clicks=0,
-                style={'cursor': 'pointer'},
+                style={'cursor': 'zoom-in'},
                 children=[
                     dcc.Markdown(
                         f'<img src="/vipir_inversion/assets/{TARGET_GALLERY_SUBDIR}/{filename}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
@@ -56,28 +56,22 @@ def serve_layout():
                 ]
             ),
             html.Div([
-                html.P(filename, style={
-                    'textAlign': 'center', 
-                    'margin': '0', 
-                    'fontFamily': 'sans-serif',
-                    'fontSize': '14px',
-                    'fontWeight': 'bold',
-                    'color': '#444',
-                    'wordBreak': 'break-all'
-                }),
-                html.A(
-                    "Open full dashboard in new tab ↗", 
+                html.A(filename, 
                     href=f"dashboard?image={filename}", 
-                    target="_blank", 
+                    target="_blank",
                     style={
-                        'fontSize': '12px', 
-                        'textDecoration': 'none', 
-                        'color': '#3498db', 
-                        'marginTop': '8px',
-                        'fontWeight': 'bold'
+                        'display': 'block',
+                        'textAlign': 'center', 
+                        'margin': '0', 
+                        'fontFamily': 'sans-serif',
+                        'fontSize': '14px',
+                        'fontWeight': 'bold',
+                        'color': '#444',
+                        'wordBreak': 'break-all',
+                        'textDecoration': 'none'
                     }
                 )
-            ], style={'display': 'flex', 'flexDirection': 'column', 'alignItems': 'center', 'marginTop': '15px'})
+            ], style={'marginTop': '15px'})
         ], style={
             'backgroundColor': 'white',
             'padding': '15px',
