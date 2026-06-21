@@ -8,7 +8,7 @@ import numpy as np
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-consolidated_dir = os.path.join(BASE_DIR, "assets/Inversion_result_npy/") # directory where npy files are stored
+consolidated_dir = os.path.join(BASE_DIR, "assets/Inversion_result_npz/") # directory where npz files are stored
 
 # --- Helper function stub ---
 # You used this in matplotlib but did not define it! I provided a fallback so it doesn't crash.
@@ -100,7 +100,7 @@ def plot_inversion_result(fig, data, col_idx, legend_name):
     
     idx_o_ints = np.round(f_idx_o).astype(int)
     mu_o_ints  = np.round(f_mu_o).astype(int)
-    fig.add_trace(go.Scattergl(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='x-thin', size=7, line=dict(width=1.5, color='red')), name='O-mode peak', legend=legend_name), row=1, col=col_idx)
+    fig.add_trace(go.Scattergl(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='circle-open', color='red', size=7, line=dict(width=1.5, color='red')), name='O-mode peak', legend=legend_name), row=1, col=col_idx)
 
 
 def plot_thinned_traces(fig, data, col_idx, legend_name):
@@ -250,7 +250,7 @@ def plot_reconstructed_O(fig, data, col_idx, legend_name):
 #
 # PARAMETERS (all provided automatically by the main loop):
 #   fig         : the make_subplots Figure — call fig.add_trace(..., row=1, col=col_idx)
-#   data        : the full .npy dict — access any key like data['my_key']
+#   data        : the full .z dict — access any key like data['my_key']
 #                 Common keys: data['vipir_freqs'], data['vipir_hts'], data['vipir_original']
 #   col_idx     : which subplot column this panel occupies (1-indexed)
 #   legend_name : string like 'legend', 'legend2', etc. — pass to scatter traces
@@ -331,18 +331,18 @@ def serve_layout():
                     style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
                            'cursor': 'pointer', 'borderRadius': '6px', 'border': '1px solid #aaa',
                            'backgroundColor': '#f0f0f0', 'marginRight': '10px', 'fontWeight': 'bold'}),
-                html.Button('Box Zoom', id='box-zoom-btn', n_clicks=0,
-                    style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
-                           'cursor': 'pointer', 'borderRadius': '6px', 'border': '1px solid #aaa',
-                           'backgroundColor': '#e8f4f8', 'marginRight': '10px', 'fontWeight': 'bold'}),
-                html.Button('Pan', id='pan-btn', n_clicks=0,
-                    style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
-                           'cursor': 'pointer', 'borderRadius': '6px', 'border': '1px solid #aaa',
-                           'backgroundColor': '#e8f4f8', 'marginRight': '10px', 'fontWeight': 'bold'}),
                 html.Button('Zoom Out', id='zoom-out-btn', n_clicks=0,
                     style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
                            'cursor': 'pointer', 'borderRadius': '6px', 'border': '1px solid #aaa',
                            'backgroundColor': '#e8f4f8', 'marginRight': '20px', 'fontWeight': 'bold'}),
+                html.Button('Box Zoom', id='box-zoom-btn', n_clicks=0,
+                    style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
+                           'cursor': 'pointer', 'borderRadius': '6px', 'border': '2px solid #3498db',
+                           'backgroundColor': '#b3e0ff', 'marginRight': '10px', 'fontWeight': 'bold'}),
+                html.Button('Pan', id='pan-btn', n_clicks=0,
+                    style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
+                           'cursor': 'pointer', 'borderRadius': '6px', 'border': '1px solid #aaa',
+                           'backgroundColor': '#e8f4f8', 'marginRight': '10px', 'fontWeight': 'bold'}),
                 html.Span("Plot Width:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
                 html.Div(
                     dcc.Slider(
@@ -467,9 +467,10 @@ clientside_callback(
     Output('plot-abc-graph', 'figure'),
     Input('url', 'search'),
     Input('plot-toggles', 'value'),
-    Input('reset-view-btn', 'n_clicks')
+    Input('reset-view-btn', 'n_clicks'),
+    State('box-zoom-btn', 'style')
 )
-def generate_all_plots(search_query, selected_panels, reset_clicks):
+def generate_all_plots(search_query, selected_panels, reset_clicks, box_zoom_style):
     empty_abc = make_subplots(rows=1, cols=1).update_layout(title="No data loaded")
     
     if not search_query:
@@ -480,14 +481,14 @@ def generate_all_plots(search_query, selected_panels, reset_clicks):
         return empty_abc
     
     filename = parsed['image'][0]
-    npy_filename = filename.replace('.png', '.npy')
-    filepath = os.path.join(consolidated_dir, npy_filename)
+    np_filename = filename.replace('.png', '.npz')
+    filepath = os.path.join(consolidated_dir, np_filename)
 
     if not os.path.exists(filepath):
         return empty_abc
         
     # Load data ONCE
-    data = np.load(filepath, allow_pickle=True)[()]
+    data = dict(np.load(filepath, allow_pickle=True))
     freqs = data['vipir_freqs']
     hts = data['vipir_hts']
     
@@ -552,6 +553,11 @@ def generate_all_plots(search_query, selected_panels, reset_clicks):
         domain = fig_abc.layout[xaxis_key].domain
         layout_update[legend_name] = dict(**legend_style, xanchor="left", x=domain[0] + 0.01)
     
+    current_dragmode = 'zoom'
+    if box_zoom_style and box_zoom_style.get('backgroundColor') != '#b3e0ff':
+        current_dragmode = 'pan'
+    layout_update['dragmode'] = current_dragmode
+
     fig_abc.update_layout(**layout_update)
     # Label axes - only first column gets y-axis label
     fig_abc.update_yaxes(title_text="Virtual Height (km)", row=1, col=1)
@@ -592,13 +598,13 @@ def update_cross_section(clickData, search_query):
         return no_update
         
     filename = parsed['image'][0]
-    npy_filename = filename.replace('.png', '.npy')
-    filepath = os.path.join(consolidated_dir, npy_filename)
+    np_filename = filename.replace('.png', '.npz')
+    filepath = os.path.join(consolidated_dir, np_filename)
     
     if not os.path.exists(filepath):
         return no_update
         
-    data = np.load(filepath, allow_pickle=True)[()]
+    data = np.load(filepath, allow_pickle=True)
     hts = data['vipir_hts']
     freqs = data['vipir_freqs']
     org = data['vipir_original']
@@ -799,12 +805,15 @@ def update_cross_section(clickData, search_query):
 # Callback 4: Change Dragmode (Client-Side Javascript)
 clientside_callback(
     '''
-    function(zoom_clicks, pan_clicks, out_clicks) {
+    function(zoom_clicks, pan_clicks, out_clicks, zoom_style, pan_style) {
         var triggered = dash_clientside.callback_context.triggered;
         if (!triggered || triggered.length === 0) {
-            return window.dash_clientside.no_update;
+            return [window.dash_clientside.no_update, window.dash_clientside.no_update];
         }
         var prop_id = triggered[0].prop_id;
+        
+        var new_zoom_style = Object.assign({}, zoom_style);
+        var new_pan_style = Object.assign({}, pan_style);
         
         var graphWrapper = document.getElementById('plot-abc-graph');
         if (graphWrapper) {
@@ -812,8 +821,16 @@ clientside_callback(
             if (plotlyDiv) {
                 if (prop_id === 'pan-btn.n_clicks') {
                     Plotly.relayout(plotlyDiv, {dragmode: 'pan'});
+                    new_pan_style['backgroundColor'] = '#b3e0ff';
+                    new_pan_style['border'] = '2px solid #3498db';
+                    new_zoom_style['backgroundColor'] = '#e8f4f8';
+                    new_zoom_style['border'] = '1px solid #aaa';
                 } else if (prop_id === 'box-zoom-btn.n_clicks') {
                     Plotly.relayout(plotlyDiv, {dragmode: 'zoom'});
+                    new_zoom_style['backgroundColor'] = '#b3e0ff';
+                    new_zoom_style['border'] = '2px solid #3498db';
+                    new_pan_style['backgroundColor'] = '#e8f4f8';
+                    new_pan_style['border'] = '1px solid #aaa';
                 } else if (prop_id === 'zoom-out-btn.n_clicks') {
                     var outBtn = plotlyDiv.querySelector('[data-title="Zoom out"]');
                     if (outBtn) {
@@ -822,12 +839,14 @@ clientside_callback(
                 }
             }
         }
-        return window.dash_clientside.no_update;
+        return [new_zoom_style, new_pan_style];
     }
     ''',
-    Output('box-zoom-btn', 'style'), # Dummy output since we use Plotly.relayout directly
+    [Output('box-zoom-btn', 'style'), Output('pan-btn', 'style')],
     Input('box-zoom-btn', 'n_clicks'),
     Input('pan-btn', 'n_clicks'),
     Input('zoom-out-btn', 'n_clicks'),
+    State('box-zoom-btn', 'style'),
+    State('pan-btn', 'style'),
     prevent_initial_call=True
 )
