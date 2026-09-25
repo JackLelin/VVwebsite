@@ -1,4 +1,5 @@
 import os
+import glob
 from dash import Dash, html, dcc, Input, Output, State, no_update, callback, clientside_callback, Patch, ctx
 import plotly.express as px
 import plotly.graph_objects as go
@@ -8,7 +9,8 @@ import numpy as np
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-consolidated_dir = os.path.join(BASE_DIR, "assets/Inversion_result_npz/") # directory where npz files are stored
+consolidated_dir = os.path.join(BASE_DIR, "assets", "Inversion_result_npz") # directory where npz files are stored
+
 
 # --- Helper function stub ---
 # You used this in matplotlib but did not define it! I provided a fallback so it doesn't crash.
@@ -478,12 +480,14 @@ def generate_all_plots(search_query, selected_panels, reset_clicks, box_zoom_sty
         return empty_abc, "Detailed Plots"
         
     parsed = urllib.parse.parse_qs(search_query.lstrip('?'))
-    if 'image' not in parsed:
+    if 'image' not in parsed or 'year' not in parsed or 'day' not in parsed:
         return empty_abc, "Detailed Plots"
     
     filename = parsed['image'][0]
+    year = parsed['year'][0]
+    day = parsed['day'][0]
     np_filename = filename.replace('.png', '.npz')
-    filepath = os.path.join(consolidated_dir, np_filename)
+    filepath = os.path.join(consolidated_dir, year, day, np_filename)
 
     if not os.path.exists(filepath):
         return empty_abc, f"Detailed Plots: {filename} (Data not found)"
@@ -603,12 +607,14 @@ def update_cross_section(clickData, search_query):
         return no_update
         
     parsed = urllib.parse.parse_qs(search_query.lstrip('?'))
-    if 'image' not in parsed:
+    if 'image' not in parsed or 'year' not in parsed or 'day' not in parsed:
         return no_update
         
     filename = parsed['image'][0]
+    year = parsed['year'][0]
+    day = parsed['day'][0]
     np_filename = filename.replace('.png', '.npz')
-    filepath = os.path.join(consolidated_dir, np_filename)
+    filepath = os.path.join(consolidated_dir, year, day, np_filename)
     
     if not os.path.exists(filepath):
         return no_update

@@ -6,43 +6,25 @@ from dash import html, dcc, Input, Output, State, callback, ALL, ctx, no_update
 # ==========================================
 # CONFIGURATION
 # ==========================================
-# The sub-folder inside 'assets' where the gallery images are stored.
-# Set to 'Preview_figures' to scan assets/Preview_figures, or '' for the root assets folder.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TARGET_GALLERY_SUBDIR = 'Preview_figures'
+PREVIEW_BASE_DIR = os.path.join(BASE_DIR, 'assets', TARGET_GALLERY_SUBDIR)
+BASE_URL = '/vipir_inversion/'
 
-# By setting app.layout to a function, Dash will re-evaluate it every time the page is refreshed!
-def serve_layout():
-    # 1. Dynamically scan the target folder
-    gallery_assets_directory = os.path.join(os.path.dirname(__file__), 'assets', TARGET_GALLERY_SUBDIR)
-    
-    # Check if the assets folder exists
-    if not os.path.exists(gallery_assets_directory):
-        return html.Div([
-            html.H1("Image Gallery Dashboard", style={'fontFamily': 'sans-serif', 'color': '#333'}),
-            html.P("The 'assets' folder does not exist yet.", style={'color': 'red', 'fontSize': '18px'}),
-            html.P("Please create an 'assets' folder next to this script and add some PNGs!", style={'color': 'gray'})
-        ], style={'textAlign': 'center', 'padding': '50px', 'fontFamily': 'sans-serif'})
-        
-    # Find all PNG files
-    search_pattern = os.path.join(gallery_assets_directory, '*.png')
-    gallery_png_filepaths = glob.glob(search_pattern)
-    
-    # Sort them alphabetically
-    gallery_png_filepaths.sort()
-    
-    if not gallery_png_filepaths:
-        return html.Div([
-            html.H1("Image Gallery Dashboard", style={'fontFamily': 'sans-serif', 'color': '#333'}),
-            html.P("No PNG images found in the 'assets' folder.", style={'color': 'red', 'fontSize': '18px'}),
-            html.P("Move your Trace Thinning images into the assets folder and refresh this page!", style={'color': 'gray'})
-        ], style={'textAlign': 'center', 'padding': '50px', 'fontFamily': 'sans-serif'})
 
-    # 2. Build the image grid
+def build_gallery_cards(year, day):
+    """Build list of image cards for a given year and day."""
+    if not year or not day:
+        return [], []
+    day_dir = os.path.join(PREVIEW_BASE_DIR, str(year), str(day))
+    gallery_png_filepaths = sorted(glob.glob(os.path.join(day_dir, '*.png')))
+
+    # Build the image cards
     gallery_image_cards = []
+    base_asset_prefix = BASE_URL.rstrip('/')
     for filepath in gallery_png_filepaths:
         filename = os.path.basename(filepath)
 
-        # Create a card for each image
         image_card_container = html.Div([
             html.Div(
                 id={'type': 'gallery-image', 'index': filename},
@@ -50,19 +32,20 @@ def serve_layout():
                 style={'cursor': 'zoom-in'},
                 children=[
                     dcc.Markdown(
-                        f'<img src="/vipir_inversion/assets/{TARGET_GALLERY_SUBDIR}/{filename}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
+                        f'<img src="{base_asset_prefix}/assets/{TARGET_GALLERY_SUBDIR}/{year}/{day}/{filename}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
                         dangerously_allow_html=True
                     )
                 ]
             ),
             html.Div([
-                html.A(filename, 
-                    href=f"dashboard?image={filename}", 
+                html.A(
+                    filename,
+                    href=f"{BASE_URL}dashboard?image={filename}&year={year}&day={day}",
                     target="_blank",
                     style={
                         'display': 'block',
-                        'textAlign': 'center', 
-                        'margin': '0', 
+                        'textAlign': 'center',
+                        'margin': '0',
                         'fontFamily': 'sans-serif',
                         'fontSize': '14px',
                         'fontWeight': 'bold',
@@ -84,11 +67,20 @@ def serve_layout():
         })
         gallery_image_cards.append(image_card_container)
 
-    # 3. Define the Pop-Up Modal Window
+    return gallery_png_filepaths, gallery_image_cards
+
+
+# By setting app.layout to a function, Dash re-evaluates it every time the page is refreshed
+def serve_layout(selected_year=None, selected_day=None):
+    available_years = sorted([os.path.basename(p) for p in glob.glob(os.path.join(PREVIEW_BASE_DIR, '*')) if os.path.isdir(p)])
+    available_days = sorted([os.path.basename(p) for p in glob.glob(os.path.join(PREVIEW_BASE_DIR, str(selected_year), '*')) if os.path.isdir(p)]) if selected_year else []
+    gallery_png_filepaths, initial_cards = build_gallery_cards(selected_year, selected_day)
+
+    # 1. Define the Pop-Up Modal Window
     caption_modal = html.Div(id="caption-modal", style={
-        'display': 'none', # Hidden by default!
+        'display': 'none', # Hidden by default
         'position': 'fixed',
-        'zIndex': '1000', # Force it to the front
+        'zIndex': '1000', # Force to the front
         'left': '0', 'top': '0',
         'width': '100%', 'height': '100%',
         'backgroundColor': 'rgba(0,0,0,0.6)', # Darkened background
@@ -111,7 +103,6 @@ def serve_layout():
                 html.Li([html.B("(c) The virtual height of reflection: "), "The virtual height of reflection is the peak location of the return signal."]),
                 html.Li([html.B("(d) Final Inversion: "), "Blue dots: Phase profile from the ISR. Red curve: The predicted phase profile from the Ne profile."])
             ], style={'lineHeight': '1.8', 'fontSize': '16px'}),
-            # html.P(html.I("You can edit this text directly in the gallery_app.py file!")),
             html.Div([
                 html.Button("Close Window", id="close-modal-btn", style={
                     'marginTop': '20px', 'padding': '10px 20px', 'cursor': 'pointer',
@@ -122,11 +113,11 @@ def serve_layout():
         ])
     ])
 
-    # 4. Define the Dashboard Modal Window
+    # 2. Define the Dashboard Modal Window
     dashboard_modal = html.Div(
         id="dashboard-modal",
         style={
-            'display': 'none', 
+            'display': 'none',
             'position': 'fixed',
             'zIndex': '1050',
             'left': '0', 'top': '0',
@@ -169,15 +160,70 @@ def serve_layout():
         ]
     )
 
-    # 5. Return the full layout
-    return html.Div([
+    # 3. Return the full layout
+    out_layout = html.Div([
         dashboard_modal, # INJECT THE DASHBOARD MODAL
-        caption_modal, # INJECT THE MODAL INTO THE LAYOUT
-        
+        caption_modal,   # INJECT THE MODAL INTO THE LAYOUT
+
+        # Top Bar: Year Selector and Day Selector Dropdowns
+        html.Div([
+            html.Div([
+                html.Span("Select Year:", style={
+                    'fontWeight': 'bold',
+                    'fontSize': '16px',
+                    'color': '#2c3e50',
+                    'fontFamily': 'sans-serif',
+                    'marginRight': '12px'
+                }),
+                dcc.Dropdown(
+                    id='year-select-dropdown',
+                    options=[{'label': str(y), 'value': str(y)} for y in available_years],
+                    value=selected_year,
+                    placeholder="Select year...",
+                    clearable=False,
+                    searchable=False,
+                    style={
+                        'width': '150px',
+                        'fontFamily': 'sans-serif',
+                        'fontWeight': 'bold'
+                    }
+                ),
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginLeft': '30px'}),
+            html.Div([
+                html.Span("Select Day:", style={
+                    'fontWeight': 'bold',
+                    'fontSize': '16px',
+                    'color': '#2c3e50',
+                    'fontFamily': 'sans-serif',
+                    'marginRight': '12px'
+                }),
+                dcc.Dropdown(
+                    id='day-select-dropdown',
+                    options=[{'label': str(d), 'value': str(d)} for d in available_days],
+                    value=selected_day,
+                    placeholder="Select day...",
+                    clearable=False,
+                    searchable=False,
+                    style={
+                        'width': '150px',
+                        'fontFamily': 'sans-serif',
+                        'fontWeight': 'bold'
+                    }
+                ),
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginLeft': '20px'}),
+        ], style={
+            'display': 'flex',
+            'alignItems': 'center',
+            'padding': '14px 0',
+            'backgroundColor': '#ffffff',
+            'borderBottom': '1px solid #eaeaea',
+            'boxShadow': '0 2px 6px rgba(0,0,0,0.03)'
+        }),
+
         # Header Area
         html.Div([
-            html.H1("Ionogram Inversion Result for Jan 14 2016", style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#2c3e50', 'margin': '0 0 10px 30px'}),
-            html.P(f"Total {len(gallery_png_filepaths)} images.", style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#7f8c8d', 'margin': '0 0 15px 30px'}),
+            html.H1(f"Ionogram Inversion Result for {selected_year} Day {selected_day}" if (selected_year and selected_day) else (f"Ionogram Inversion Result for {selected_year}" if selected_year else "Ionogram Inversion Result"), style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#2c3e50', 'margin': '0 0 10px 30px'}),
+            html.P(f"Total {len(gallery_png_filepaths)} images." if (selected_year and selected_day) else ("Please select a day above to view images." if selected_year else "Please select a year and day above to view images."), style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#7f8c8d', 'margin': '0 0 15px 30px'}),
             # Floating Button Container
             html.Div([
                 html.Button("View Panel Explanations", id="open-modal-btn", style={
@@ -188,18 +234,21 @@ def serve_layout():
                     'transition': 'transform 0.2s'
                 })
             ])
-        ], style={'padding': '40px 0', 'backgroundColor': '#fff', 'boxShadow': '0 2px 10px rgba(0,0,0,0.05)', 'marginBottom': '30px'}),
-        
-        # Single Column Layout
-        html.Div(gallery_image_cards, style={
-            'display': 'flex',
-            'flexDirection': 'column', # Stack images vertically
-            'gap': '40px', # Generous spacing between the wide plots
-            'padding': '0 30px 40px 30px',
-            'maxWidth': '1600px', # Allow them to stretch wide
-            'margin': '0 auto'
+        ], style={'padding': '30px 0', 'backgroundColor': '#fff', 'boxShadow': '0 2px 10px rgba(0,0,0,0.05)', 'marginBottom': '30px'}),
+
+        # Image Grid Container
+        html.Div(
+            children=initial_cards,
+            style={
+                'display': 'flex',
+                'flexDirection': 'column', # Stack images vertically
+                'gap': '40px', # Generous spacing between the wide plots
+                'padding': '0 30px 40px 30px',
+                'maxWidth': '1600px', # Allow them to stretch wide
+                'margin': '0 auto'
         })
     ], style={'backgroundColor': '#f8f9fa', 'minHeight': '100vh', 'margin': '-8px'}) # -8px margin removes default body margin
+    return out_layout
 
 # CALLBACK: Toggle the Modal Window Open and Closed
 @callback(
@@ -216,6 +265,34 @@ def toggle_modal(open_clicks, close_clicks, current_style):
         current_style['display'] = 'none' # Hide it
     return current_style
 
+
+# Task 1 CALLBACK: When Year changes in dropdown, glob to find day folders and update Day selector
+@callback(
+    Output("day-select-dropdown", "options"),
+    Output("day-select-dropdown", "value"),
+    Input("year-select-dropdown", "value"),
+    prevent_initial_call=True
+)
+def update_day_selector(selected_year):
+    if not selected_year:
+        return [], None
+    days = sorted([os.path.basename(p) for p in glob.glob(os.path.join(PREVIEW_BASE_DIR, str(selected_year), '*')) if os.path.isdir(p)])
+    return [{'label': str(d), 'value': str(d)} for d in days], None
+
+
+# Task 2 CALLBACK: When Day is selected, update the webpage URL path
+@callback(
+    Output("url", "pathname"),
+    Input("day-select-dropdown", "value"),
+    State("year-select-dropdown", "value"),
+    prevent_initial_call=True
+)
+def update_webpage_path(selected_day, selected_year):
+    if selected_year and selected_day:
+        return f"{BASE_URL}{selected_year}/{selected_day}"
+    return no_update
+
+
 # CALLBACK: Toggle Dashboard Modal using Iframe
 @callback(
     Output("dashboard-modal", "style"),
@@ -223,29 +300,31 @@ def toggle_modal(open_clicks, close_clicks, current_style):
     Input({'type': 'gallery-image', 'index': ALL}, 'n_clicks'),
     Input("close-dashboard-btn", "n_clicks"),
     State("dashboard-modal", "style"),
+    State("year-select-dropdown", "value"),
+    State("day-select-dropdown", "value"),
     prevent_initial_call=True
 )
-def toggle_dashboard_modal(n_clicks_list, close_clicks, current_style):
+def toggle_dashboard_modal(n_clicks_list, close_clicks, current_style, selected_year, selected_day):
     if not ctx.triggered:
         return no_update, no_update
-    
+
     trigger_id = ctx.triggered[0]['prop_id']
-    
+
     if 'close-dashboard-btn' in trigger_id:
         if not current_style:
             current_style = {}
         current_style['display'] = 'none'
         return current_style, ""
-        
+
     if 'gallery-image' in trigger_id:
         if not any(n_clicks_list):
             return no_update, no_update
-            
+
         trigger_dict = json.loads(trigger_id.rsplit('.', 1)[0])
         filename = trigger_dict['index']
-        
+
         style = {
-            'display': 'flex', 
+            'display': 'flex',
             'position': 'fixed',
             'zIndex': '1050',
             'left': '0', 'top': '0',
@@ -256,6 +335,6 @@ def toggle_dashboard_modal(n_clicks_list, close_clicks, current_style):
             'padding': '10px',
             'boxSizing': 'border-box'
         }
-        return style, f"dashboard?image={filename}"
-        
+        return style, f"{BASE_URL}dashboard?image={filename}&year={selected_year}&day={selected_day}"
+
     return no_update, no_update

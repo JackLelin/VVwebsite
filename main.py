@@ -7,11 +7,16 @@ BASE_URL = '/vipir_inversion/'
 # We make it smart: Detect if we are running locally or via Apache WSGI
 if __name__ == '__main__':
     # Local Testing Mode: Forces local testing to use the exact same subfolder URL
-    vipir_app = Dash(__name__, url_base_pathname=BASE_URL, suppress_callback_exceptions=True)
+    vipir_app = Dash(
+        __name__, 
+        title="VIPIR inversion",
+        url_base_pathname=BASE_URL, 
+        suppress_callback_exceptions=True)
 else:
     # Apache WSGI Mode: Apache strips the folder name, so we split the routing
     vipir_app = Dash(
         __name__, 
+        title="VIPIR inversion",
         requests_pathname_prefix=BASE_URL,
         routes_pathname_prefix='/',
         suppress_callback_exceptions=True
@@ -53,8 +58,12 @@ def display_page(pathname, search):
         # User went directly to /?image=...
         return dashboard.serve_layout()
     else:
-        # Default to the gallery (Main Entrance)
-        return gallery_app.serve_layout()
+        # Gallery - extract year and day from pathname (e.g. /vipir_inversion/2016/014 -> year='2016', day='014')
+        base_name = BASE_URL.strip('/')
+        parts = [p for p in (pathname or '').strip('/').split('/') if p and p != base_name]
+        year = parts[0] if (len(parts) > 0 and parts[0].isdigit()) else None
+        day = parts[1] if len(parts) > 1 else None
+        return gallery_app.serve_layout(year, day)
 
 if __name__ == '__main__':
     # Still listen locally if you ever need to run it without Apache
