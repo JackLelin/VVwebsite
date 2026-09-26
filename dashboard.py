@@ -8,8 +8,7 @@ import urllib.parse
 import numpy as np
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-consolidated_dir = os.path.join(BASE_DIR, "assets", "Inversion_result_npz") # directory where npz files are stored
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 
 
 # --- Helper function stub ---
@@ -46,6 +45,8 @@ def filter_out_noise_peaks(img, freqs, idx, mu, std, A):
 # Extract freqs, hts, intensity, etc. from `data` inside your function.
 
 def plot_original_ionogram(fig, data, col_idx, legend_name):
+    if 'vipir_original' not in data:
+        return
     """(a) Original Ionogram — jet colorscale heatmap."""
     freqs = data['vipir_freqs']
     hts = data['vipir_hts']
@@ -65,6 +66,7 @@ def plot_original_ionogram(fig, data, col_idx, legend_name):
 
 def plot_inversion_result(fig, data, col_idx, legend_name):
     """(b) Inversion Result — grayscale background + inversion overlay traces."""
+
     freqs = data['vipir_freqs']
     hts = data['vipir_hts']
     intensity = 10 * np.log10(data['vipir_original'] + 1)
@@ -77,36 +79,40 @@ def plot_inversion_result(fig, data, col_idx, legend_name):
         ),
         row=1, col=col_idx
     )
-    fps = data['vipir_inversion_fps']
-    Z = data['vipir_inversion_z_hts']
-    x_vals = data['vipir_inversion_all_xvals'][-1]
-    z = data['vipir_inversion_z_node']
-    fvsO = data['vipir_inversion_fvsO']
-    vhsO = data['vipir_inversion_vhsO']
-    fvsX = data['vipir_inversion_fvsX']
-    vhsX = data['vipir_inversion_vhsX']
+    if 'vipir_inversion_fps' in data:
+        fps = data['vipir_inversion_fps']
+        Z = data['vipir_inversion_z_hts']
+        x_vals = data['vipir_inversion_all_xvals'][-1]
+        z = data['vipir_inversion_z_node']
+        fvsO = data['vipir_inversion_fvsO']
+        vhsO = data['vipir_inversion_vhsO']
+        fvsX = data['vipir_inversion_fvsX']
+        vhsX = data['vipir_inversion_vhsX']
     
-    fig.add_trace(go.Scattergl(x=fps, y=Z, mode='lines', line=dict(color='darkgreen'), name='fp profile', legend=legend_name), row=1, col=col_idx)
-    fig.add_trace(go.Scattergl(x=x_vals, y=z, mode='markers', marker=dict(color='green', size=6), name='fp spline node', legend=legend_name), row=1, col=col_idx)
-    fig.add_trace(go.Scattergl(x=fvsO, y=vhsO, mode='lines', line=dict(color='red'), name='O-trace hv', legend=legend_name), row=1, col=col_idx)
-    fig.add_trace(go.Scattergl(x=fvsX, y=vhsX, mode='lines', line=dict(color='blue'), name='X-trace hv', legend=legend_name), row=1, col=col_idx)
+        fig.add_trace(go.Scattergl(x=fps, y=Z, mode='lines', line=dict(color='darkgreen'), name='fp profile', legend=legend_name), row=1, col=col_idx)
+        fig.add_trace(go.Scattergl(x=x_vals, y=z, mode='markers', marker=dict(color='green', size=6), name='fp spline node', legend=legend_name), row=1, col=col_idx)
+        fig.add_trace(go.Scattergl(x=fvsO, y=vhsO, mode='lines', line=dict(color='red'), name='O-trace hv', legend=legend_name), row=1, col=col_idx)
+        fig.add_trace(go.Scattergl(x=fvsX, y=vhsX, mode='lines', line=dict(color='blue'), name='X-trace hv', legend=legend_name), row=1, col=col_idx)
 
-    f_idx_o = data['filtered_idx_o']
-    f_idx_x = data['filtered_idx_x']
-    f_mu_o = data['filtered_mu_o']
-    f_mu_x = data['filtered_mu_x']
+    if 'filtered_idx_o' in data:
+        f_idx_o = data['filtered_idx_o']
+        f_idx_x = data['filtered_idx_x']
+        f_mu_o = data['filtered_mu_o']
+        f_mu_x = data['filtered_mu_x']
 
-    idx_x_ints = np.round(f_idx_x).astype(int)
-    mu_x_ints  = np.round(f_mu_x).astype(int)
-    fig.add_trace(go.Scattergl(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x-thin', size=7, line=dict(width=1.5, color='blue')), name='X-mode peak', legend=legend_name), row=1, col=col_idx)
-    
-    idx_o_ints = np.round(f_idx_o).astype(int)
-    mu_o_ints  = np.round(f_mu_o).astype(int)
-    fig.add_trace(go.Scattergl(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='circle-open', color='red', size=7, line=dict(width=1.5, color='red')), name='O-mode peak', legend=legend_name), row=1, col=col_idx)
+        idx_x_ints = np.round(f_idx_x).astype(int)
+        mu_x_ints  = np.round(f_mu_x).astype(int)
+        fig.add_trace(go.Scattergl(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x-thin', size=7, line=dict(width=1.5, color='blue')), name='X-mode peak', legend=legend_name), row=1, col=col_idx)
+        
+        idx_o_ints = np.round(f_idx_o).astype(int)
+        mu_o_ints  = np.round(f_mu_o).astype(int)
+        fig.add_trace(go.Scattergl(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='circle-open', color='red', size=7, line=dict(width=1.5, color='red')), name='O-mode peak', legend=legend_name), row=1, col=col_idx)
 
 
 def plot_thinned_traces(fig, data, col_idx, legend_name):
     """(c) Thinned Traces — grayscale background + GMM scatter overlay."""
+    if 'vipir_inversion_fps' not in data:
+        return
     freqs = data['vipir_freqs']
     hts = data['vipir_hts']
     intensity = 10 * np.log10(data['vipir_original'] + 1)
@@ -134,6 +140,8 @@ def plot_thinned_traces(fig, data, col_idx, legend_name):
 
 def plot_segmented_mask(fig, data, col_idx, legend_name):
     """Plotting segmented mask from T-UNet o-mode and x-mode"""
+    if 'vipir_DNN_imgO' not in data or 'vipir_DNN_imgX' not in data:
+        return
     freqs = data['vipir_freqs']
     hts   = data['vipir_hts']
     binary_ionogram = data['vipir_binary_ionogram'].astype(np.int_)
@@ -185,7 +193,8 @@ def plot_segmented_mask(fig, data, col_idx, legend_name):
 def plot_reconstructed_ionogram(fig, data, col_idx, legend_name):
     freqs = data['vipir_freqs']
     hts = data['vipir_hts']
-
+    if 'gauss_reconstruct_o' not in data or 'gauss_reconstruct_x' not in data:
+        return
 
     intensity = 10 * np.log10(data['gauss_reconstruct_o'] + data['gauss_reconstruct_x'] + 1)
     # Position colorbar at the right edge of this subplot's domain
@@ -204,7 +213,8 @@ def plot_reconstructed_ionogram(fig, data, col_idx, legend_name):
 def plot_reconstructed_X(fig, data, col_idx, legend_name):
     freqs = data['vipir_freqs']
     hts = data['vipir_hts']
-
+    if 'gauss_reconstruct_x' not in data:
+        return
 
     intensity = 10 * np.log10(data['gauss_reconstruct_x'] + 1)
     # Position colorbar at the right edge of this subplot's domain
@@ -223,7 +233,8 @@ def plot_reconstructed_X(fig, data, col_idx, legend_name):
 def plot_reconstructed_O(fig, data, col_idx, legend_name):
     freqs = data['vipir_freqs']
     hts = data['vipir_hts']
-
+    if 'gauss_reconstruct_o' not in data :
+        return
 
     intensity = 10 * np.log10(data['gauss_reconstruct_o'] + 1)
     # Position colorbar at the right edge of this subplot's domain
@@ -487,7 +498,7 @@ def generate_all_plots(search_query, selected_panels, reset_clicks, box_zoom_sty
     year = parsed['year'][0]
     day = parsed['day'][0]
     np_filename = filename.replace('.png', '.npz')
-    filepath = os.path.join(consolidated_dir, year, day, np_filename)
+    filepath = os.path.join(ASSETS_DIR, year, day, "Inversion_result_npz", np_filename)
 
     if not os.path.exists(filepath):
         return empty_abc, f"Detailed Plots: {filename} (Data not found)"
@@ -614,7 +625,7 @@ def update_cross_section(clickData, search_query):
     year = parsed['year'][0]
     day = parsed['day'][0]
     np_filename = filename.replace('.png', '.npz')
-    filepath = os.path.join(consolidated_dir, year, day, np_filename)
+    filepath = os.path.join(ASSETS_DIR, year, day, "Inversion_result_npz", np_filename)
     
     if not os.path.exists(filepath):
         return no_update

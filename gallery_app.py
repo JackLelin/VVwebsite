@@ -7,17 +7,20 @@ from dash import html, dcc, Input, Output, State, callback, ALL, ctx, no_update
 # CONFIGURATION
 # ==========================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR = os.path.join(BASE_DIR, 'assets')
 TARGET_GALLERY_SUBDIR = 'Preview_figures'
-PREVIEW_BASE_DIR = os.path.join(BASE_DIR, 'assets', TARGET_GALLERY_SUBDIR)
 BASE_URL = '/vipir_inversion/'
 
 
-def build_gallery_cards(year, day):
-    """Build list of image cards for a given year and day."""
+def build_gallery_cards(year, day, start_hour, end_hour):
+    """Build list of image cards for a given year and day, optionally filtered by hour range."""
     if not year or not day:
         return [], []
-    day_dir = os.path.join(PREVIEW_BASE_DIR, str(year), str(day))
-    gallery_png_filepaths = sorted(glob.glob(os.path.join(day_dir, '*.png')))
+    day_dir = os.path.join(ASSETS_DIR, str(year), str(day), TARGET_GALLERY_SUBDIR)
+    gallery_png_filepaths = [
+        fp for fp in sorted(glob.glob(os.path.join(day_dir, '*.png')))
+        if start_hour <= int(os.path.basename(fp)[13:15]) <= end_hour
+    ]
 
     # Build the image cards
     gallery_image_cards = []
@@ -32,7 +35,7 @@ def build_gallery_cards(year, day):
                 style={'cursor': 'zoom-in'},
                 children=[
                     dcc.Markdown(
-                        f'<img src="{base_asset_prefix}/assets/{TARGET_GALLERY_SUBDIR}/{year}/{day}/{filename}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
+                        f'<img src="{base_asset_prefix}/assets/{year}/{day}/{TARGET_GALLERY_SUBDIR}/{filename}" loading="lazy" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
                         dangerously_allow_html=True
                     )
                 ]
@@ -72,9 +75,9 @@ def build_gallery_cards(year, day):
 
 # By setting app.layout to a function, Dash re-evaluates it every time the page is refreshed
 def serve_layout(selected_year=None, selected_day=None):
-    available_years = sorted([os.path.basename(p) for p in glob.glob(os.path.join(PREVIEW_BASE_DIR, '*')) if os.path.isdir(p)])
-    available_days = sorted([os.path.basename(p) for p in glob.glob(os.path.join(PREVIEW_BASE_DIR, str(selected_year), '*')) if os.path.isdir(p)]) if selected_year else []
-    gallery_png_filepaths, initial_cards = build_gallery_cards(selected_year, selected_day)
+    available_years = sorted([os.path.basename(p) for p in glob.glob(os.path.join(ASSETS_DIR, '*')) if os.path.isdir(p) and os.path.basename(p).isdigit()])
+    available_days = sorted([os.path.basename(p) for p in glob.glob(os.path.join(ASSETS_DIR, str(selected_year), '*')) if os.path.isdir(p)]) if selected_year else []
+    gallery_png_filepaths, initial_cards = build_gallery_cards(selected_year, selected_day, start_hour=12, end_hour=25)
 
     # 1. Define the Pop-Up Modal Window
     caption_modal = html.Div(id="caption-modal", style={
@@ -165,7 +168,7 @@ def serve_layout(selected_year=None, selected_day=None):
         dashboard_modal, # INJECT THE DASHBOARD MODAL
         caption_modal,   # INJECT THE MODAL INTO THE LAYOUT
 
-        # Top Bar: Year Selector and Day Selector Dropdowns
+        # Top Bar: Year Selector, Day Selector, and Hour Sliders
         html.Div([
             html.Div([
                 html.Span("Select Year:", style={
@@ -211,9 +214,48 @@ def serve_layout(selected_year=None, selected_day=None):
                     }
                 ),
             ], style={'display': 'flex', 'alignItems': 'center', 'marginLeft': '20px'}),
+            html.Div([
+                html.Span("Hour Range (UT):", style={
+                    'fontWeight': 'bold',
+                    'fontSize': '16px',
+                    'color': '#2c3e50',
+                    'fontFamily': 'sans-serif',
+                    'marginRight': '15px'
+                }),
+                html.Div([
+                    dcc.RangeSlider(
+                        id='hour-range-slider',
+                        min=0,
+                        max=24,
+                        step=1,
+                        value=[12, 24],
+                        updatemode='mouseup',
+                        marks={i: str(i - 5 if i >= 5 else i + 19) if i!=0 else f'LT:{i+19}' for i in range(0, 25, 2)}
+                    )
+                ], style={'width': '550px'}),
+                html.Button(
+                    "Apply",
+                    id='apply-hour-filter-btn',
+                    n_clicks=0,
+                    style={
+                        'marginLeft': '20px',
+                        'padding': '6px 16px',
+                        'backgroundColor': '#27ae60',
+                        'color': 'white',
+                        'border': 'none',
+                        'borderRadius': '6px',
+                        'fontWeight': 'bold',
+                        'fontSize': '14px',
+                        'cursor': 'pointer',
+                        'boxShadow': '0 2px 5px rgba(0,0,0,0.1)'
+                    }
+                )
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginLeft': '30px'}),
         ], style={
             'display': 'flex',
             'alignItems': 'center',
+            'flexWrap': 'wrap',
+            'gap': '10px 0',
             'padding': '14px 0',
             'backgroundColor': '#ffffff',
             'borderBottom': '1px solid #eaeaea',
@@ -223,7 +265,11 @@ def serve_layout(selected_year=None, selected_day=None):
         # Header Area
         html.Div([
             html.H1(f"Ionogram Inversion Result for {selected_year} Day {selected_day}" if (selected_year and selected_day) else (f"Ionogram Inversion Result for {selected_year}" if selected_year else "Ionogram Inversion Result"), style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#2c3e50', 'margin': '0 0 10px 30px'}),
-            html.P(f"Total {len(gallery_png_filepaths)} images." if (selected_year and selected_day) else ("Please select a day above to view images." if selected_year else "Please select a year and day above to view images."), style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#7f8c8d', 'margin': '0 0 15px 30px'}),
+            html.P(
+                f"Total {len(gallery_png_filepaths)} images." if (selected_year and selected_day) else ("Please select a day above to view images." if selected_year else "Please select a year and day above to view images."),
+                id='gallery-count-text',
+                style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#7f8c8d', 'margin': '0 0 15px 30px'}
+            ),
             # Floating Button Container
             html.Div([
                 html.Button("View Panel Explanations", id="open-modal-btn", style={
@@ -236,17 +282,26 @@ def serve_layout(selected_year=None, selected_day=None):
             ])
         ], style={'padding': '30px 0', 'backgroundColor': '#fff', 'boxShadow': '0 2px 10px rgba(0,0,0,0.05)', 'marginBottom': '30px'}),
 
-        # Image Grid Container
-        html.Div(
-            children=initial_cards,
-            style={
-                'display': 'flex',
-                'flexDirection': 'column', # Stack images vertically
-                'gap': '40px', # Generous spacing between the wide plots
-                'padding': '0 30px 40px 30px',
-                'maxWidth': '1600px', # Allow them to stretch wide
-                'margin': '0 auto'
-        })
+        # Image Grid Container wrapped in dcc.Loading
+        dcc.Loading(
+            id='gallery-loading',
+            type='circle',
+            color='#27ae60',
+            show_initially=False,
+            overlay_style={'visibility': 'hidden', 'filter': 'blur(2px)'},
+            children=html.Div(
+                id='gallery-grid-container',
+                children=initial_cards,
+                style={
+                    'display': 'flex',
+                    'flexDirection': 'column', # Stack images vertically
+                    'gap': '40px', # Generous spacing between the wide plots
+                    'padding': '0 30px 40px 30px',
+                    'maxWidth': '1600px', # Allow them to stretch wide
+                    'margin': '0 auto'
+                }
+            )
+        )
     ], style={'backgroundColor': '#f8f9fa', 'minHeight': '100vh', 'margin': '-8px'}) # -8px margin removes default body margin
     return out_layout
 
@@ -276,8 +331,30 @@ def toggle_modal(open_clicks, close_clicks, current_style):
 def update_day_selector(selected_year):
     if not selected_year:
         return [], None
-    days = sorted([os.path.basename(p) for p in glob.glob(os.path.join(PREVIEW_BASE_DIR, str(selected_year), '*')) if os.path.isdir(p)])
+    days = sorted([os.path.basename(p) for p in glob.glob(os.path.join(ASSETS_DIR, str(selected_year), '*')) if os.path.isdir(p)])
     return [{'label': str(d), 'value': str(d)} for d in days], None
+
+
+# CALLBACK: Filter gallery images by hour range when Apply button is clicked
+@callback(
+    Output('gallery-grid-container', 'children'),
+    Output('gallery-count-text', 'children'),
+    Input('apply-hour-filter-btn', 'n_clicks'),
+    State('hour-range-slider', 'value'),
+    State('year-select-dropdown', 'value'),
+    State('day-select-dropdown', 'value'),
+    prevent_initial_call=True
+)
+def apply_hour_filter(n_clicks, hour_range, selected_year, selected_day):
+    if not selected_year or not selected_day or not hour_range:
+        return no_update, no_update
+    
+    start_hour, end_hour = min(hour_range), max(hour_range)
+    gallery_png_filepaths, filtered_cards = build_gallery_cards(
+        selected_year, selected_day, start_hour=start_hour, end_hour=end_hour
+    )
+    count_str = f"Total {len(gallery_png_filepaths)} images."
+    return filtered_cards, count_str
 
 
 # Task 2 CALLBACK: When Day is selected, update the webpage URL path
