@@ -73,7 +73,7 @@ def plot_inversion_result(fig, data, col_idx, legend_name):
     fig.add_trace(
         go.Heatmap(
             z=intensity, x=freqs, y=hts,
-            colorscale='Greys', reversescale=True, zmin=10, zmax=70,
+            colorscale='Greys_r', reversescale=True, zmin=10, zmax=70,
             showscale=False,
             name='Background', showlegend=False
         ),
@@ -102,11 +102,11 @@ def plot_inversion_result(fig, data, col_idx, legend_name):
 
         idx_x_ints = np.round(f_idx_x).astype(int)
         mu_x_ints  = np.round(f_mu_x).astype(int)
-        fig.add_trace(go.Scattergl(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x-thin', size=7, line=dict(width=1.5, color='blue')), name='X-mode peak', legend=legend_name), row=1, col=col_idx)
+        fig.add_trace(go.Scattergl(x=freqs[idx_x_ints], y=hts[mu_x_ints], mode='markers', marker=dict(symbol='x-thin', size=7, line=dict(width=0.75, color='blue')), name='X-mode peak', legend=legend_name), row=1, col=col_idx)
         
         idx_o_ints = np.round(f_idx_o).astype(int)
         mu_o_ints  = np.round(f_mu_o).astype(int)
-        fig.add_trace(go.Scattergl(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='circle-open', color='red', size=7, line=dict(width=1.5, color='red')), name='O-mode peak', legend=legend_name), row=1, col=col_idx)
+        fig.add_trace(go.Scattergl(x=freqs[idx_o_ints], y=hts[mu_o_ints], mode='markers', marker=dict(symbol='circle-open', color='red', size=7, line=dict(width=0.75, color='red')), name='O-mode peak', legend=legend_name), row=1, col=col_idx)
 
 
 def plot_thinned_traces(fig, data, col_idx, legend_name):
@@ -308,8 +308,8 @@ def plot_reconstructed_O(fig, data, col_idx, legend_name):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 PLOT_CONFIG = [
-    {'id': 'a', 'label': 'Original Ionogram',  'plot_func': plot_original_ionogram},
-    {'id': 'b', 'label': 'Inversion Result',    'plot_func': plot_inversion_result},
+    {'id': 'a', 'label': 'Final Result',    'plot_func': plot_inversion_result},
+    {'id': 'b', 'label': 'Original Ionogram',  'plot_func': plot_original_ionogram},
     # {'id': 'c', 'label': 'Thinned Traces',      'plot_func': plot_thinned_traces},
     {'id': 'd', 'label': 'Segmented Mask and Binary Ionogram',      'plot_func': plot_segmented_mask},
     {'id': 'e', 'label': 'Reconstructed Ionogram', 'plot_func': plot_reconstructed_ionogram},
@@ -325,29 +325,31 @@ def serve_layout():
         # LEFT PANE (75%)
         html.Div([
             html.H2("Detailed Plots", id="dashboard-title", style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'margin': '5px 0 5px 0'}),
-            html.H3("This page plots the different stages of inverion.", style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#333', 'margin': '0 0 15px 0'}),
-            
             html.Div([
-                html.Span("Select Panels to Display:", style={'fontWeight': 'bold', 'marginRight': '10px', 'fontFamily': 'sans-serif', 'fontSize': '16px'}),
-                dcc.Checklist(
+                html.H3("This page plots the different stages of inverion.", style={'margin': '0', 'fontFamily': 'sans-serif', 'color': '#333', 'whiteSpace': 'nowrap'}),
+                html.H3("Select Panels to Display:", style={'margin': '0', 'fontFamily': 'sans-serif', 'color': '#333', 'whiteSpace': 'nowrap'}),
+                dcc.Dropdown(
                     id='plot-toggles',
-                    options=[{'label': f" {p['label']}", 'value': p['id']} for p in PLOT_CONFIG],
-                    value=[p['id'] for p in PLOT_CONFIG], # Start with all panels checked
-                    inline=True,
-                    inputStyle={'cursor': 'pointer', 'marginRight': '5px', 'marginLeft': '10px'},
-                    labelStyle={'cursor': 'pointer', 'fontSize': '16px', 'fontFamily': 'sans-serif'}
+                    options=[{'label': p['label'], 'value': p['id']} for p in PLOT_CONFIG],
+                    value=[p['id'] for p in PLOT_CONFIG],
+                    multi=True,
+                    clearable=False,
+                    placeholder="Select panels to display...",
+                    style={
+                        'minWidth': '380px',
+                        'maxWidth': '650px',
+                        'flex': '1',
+                        'fontFamily': 'sans-serif',
+                        'fontSize': '14px'
+                    }
                 )
-            ], style={'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center', 'padding': '8px 15px', 'backgroundColor': '#f9f9f9', 'borderRadius': '8px', 'maxWidth': '100%', 'flexWrap': 'wrap', 'margin': '0 auto 10px auto'}),
+            ], style={'display': 'flex', 'alignItems': 'center', 'gap': '10px', 'flexWrap': 'wrap', 'margin': '0 0 15px 0'}),
             
             html.Div([
                 html.Button('Reset Axes', id='reset-view-btn', n_clicks=0,
                     style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
                            'cursor': 'pointer', 'borderRadius': '6px', 'border': '1px solid #aaa',
-                           'backgroundColor': '#f0f0f0', 'marginRight': '10px', 'fontWeight': 'bold'}),
-                html.Button('Zoom Out', id='zoom-out-btn', n_clicks=0,
-                    style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
-                           'cursor': 'pointer', 'borderRadius': '6px', 'border': '1px solid #aaa',
-                           'backgroundColor': '#e8f4f8', 'marginRight': '20px', 'fontWeight': 'bold'}),
+                           'backgroundColor': '#f0f0f0', 'marginRight': '20px', 'fontWeight': 'bold'}),
                 html.Button('Box Zoom', id='box-zoom-btn', n_clicks=0,
                     style={'padding': '6px 16px', 'fontSize': '14px', 'fontFamily': 'sans-serif',
                            'cursor': 'pointer', 'borderRadius': '6px', 'border': '2px solid #3498db',
@@ -831,7 +833,7 @@ def update_cross_section(clickData, search_query):
 # Callback 4: Change Dragmode (Client-Side Javascript)
 clientside_callback(
     '''
-    function(zoom_clicks, pan_clicks, out_clicks, zoom_style, pan_style) {
+    function(zoom_clicks, pan_clicks, zoom_style, pan_style) {
         var triggered = dash_clientside.callback_context.triggered;
         if (!triggered || triggered.length === 0) {
             return [window.dash_clientside.no_update, window.dash_clientside.no_update];
@@ -857,11 +859,6 @@ clientside_callback(
                     new_zoom_style['border'] = '2px solid #3498db';
                     new_pan_style['backgroundColor'] = '#e8f4f8';
                     new_pan_style['border'] = '1px solid #aaa';
-                } else if (prop_id === 'zoom-out-btn.n_clicks') {
-                    var outBtn = plotlyDiv.querySelector('[data-title="Zoom out"]');
-                    if (outBtn) {
-                        outBtn.click();
-                    }
                 }
             }
         }
@@ -871,7 +868,6 @@ clientside_callback(
     [Output('box-zoom-btn', 'style'), Output('pan-btn', 'style')],
     Input('box-zoom-btn', 'n_clicks'),
     Input('pan-btn', 'n_clicks'),
-    Input('zoom-out-btn', 'n_clicks'),
     State('box-zoom-btn', 'style'),
     State('pan-btn', 'style'),
     prevent_initial_call=True
