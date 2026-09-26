@@ -234,7 +234,7 @@ def serve_layout(selected_year=None, selected_day=None):
                     )
                 ], style={'width': '550px'}),
                 html.Button(
-                    "Apply",
+                    "Filter Hours",
                     id='apply-hour-filter-btn',
                     n_clicks=0,
                     style={
