@@ -77,13 +77,13 @@ def build_welcome_section():
     example_url = f"{BASE_URL}2016/014"
     return html.Div([
         html.Div([
-            html.H2("VIPIR Ionogram Inversion Repository", style={
+            html.H2("Inversion Repository for Jicamarca VIPIR Ionograms", style={
                 'color': '#2c3e50', 'marginTop': '0', 'fontFamily': 'sans-serif', 'fontSize': '28px'
             }),
             html.P([
-                "Welcome to the VIPIR ionogram inversion data portal. This platform visualizes electron density profile "
-                "inversions derived from Vertical Incidence Pulsed Ionospheric Radar (VIPIR) soundings and compares them "
-                "with complementary ionospheric measurements."
+                "Welcome to the VIPIR ionogram data portal where we present raw and inverted ionograms recorded at the Jicamarca Radio Observatoty."
+                "Electron density profile inversions derived from Vertical Incidence Pulsed Ionospheric Radar (VIPIR) soundings are presented "
+                "and compared with complementary measurements obtained with the Jicamarca 50 MHz backscatter radar. "
             ], style={'fontSize': '16px', 'lineHeight': '1.6', 'color': '#4a5568', 'fontFamily': 'sans-serif'}),
 
             # Instructions Box
@@ -98,7 +98,7 @@ def build_welcome_section():
                         html.B("Filter by Time: "),
                         "Use the dual-handle slider above and click ",
                         html.Span("Filter Hours", style={'backgroundColor': '#27ae60', 'color': 'white', 'padding': '2px 8px', 'borderRadius': '4px', 'fontSize': '13px'}),
-                        " to narrow down the observation window."
+                        f" to narrow down the observation window. The default range is {DEFALT_START_END_LT[0]}:00-{DEFALT_START_END_LT[1]}:00 LT.",
                     ], style={'marginBottom': '10px'}),
                     html.Li([
                         html.B("Interactive Dashboard: "),
@@ -116,17 +116,13 @@ def build_welcome_section():
             # Example Link Card
             html.Div([
                 html.Div([
-                    html.Span("⭐", style={'fontSize': '22px', 'marginRight': '10px'}),
-                    html.Span("Recommended Example Dataset: 2016 Day 014", style={
+                    html.Span("Example Dataset: 2016 Day 014", style={
                         'fontWeight': 'bold', 'fontSize': '18px', 'color': '#1e3a8a'
                     })
                 ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '10px'}),
                 html.P([
-                    "To see the system in action, explore the coordinated dataset from ",
-                    html.B("2016 Day 014"),
-                    "—a comprehensive day containing ",
-                    html.B("both Incoherent Scatter Radar (ISR) phase data and VIPIR ionosonde data"),
-                    "."
+                    html.B("2016 Day 014 "),
+                    " contains both Incoherent Scatter Radar (ISR) phase data and VIPIR ionosonde data.",
                 ], style={'fontSize': '15px', 'color': '#1e293b', 'margin': '0 0 16px 0', 'lineHeight': '1.6'}),
                 dcc.Link(
                     html.Button([
@@ -165,9 +161,8 @@ def build_welcome_section():
                             'fontWeight': 'bold', 'color': '#92400e', 'fontSize': '16px', 'marginBottom': '5px'
                         }),
                         html.Div(
-                            f"Each observation day contains hundreds of high-resolution ionogram inversion figures (~1–2 MB each). "
-                            f"Because of the large data volume, the page load time can be relatively long and the website may temporarily feel unresponsive while loading and rendering images. "
-                            f"The default range is {DEFALT_START_END_LT[0]}:00–{DEFALT_START_END_LT[1]}:00 LT, and you can adjust the range using the slider above.",
+                            f"Each observation day contains thousands of ionogram figures (~1-2 MB each). "
+                            f"Because of the large data volume, the page load time can be relatively long and the website may temporarily feel unresponsive while loading and rendering images. ",
                             style={'fontSize': '14px', 'color': '#78350f', 'lineHeight': '1.6'}
                         )
                     ])
@@ -197,7 +192,7 @@ def serve_layout(selected_year=None, selected_day=None):
     available_days = sorted([os.path.basename(p) for p in glob.glob(os.path.join(ASSETS_DIR, str(selected_year), '*')) if os.path.isdir(p)]) if selected_year else []
     
     if selected_year and selected_day:
-        gallery_png_filepaths, initial_content = build_gallery_cards(selected_year, selected_day, start_hour=12, end_hour=25)
+        gallery_png_filepaths, initial_content = build_gallery_cards(selected_year, selected_day, start_hour=DEFALT_START_END_LT[0]+5, end_hour=DEFALT_START_END_LT[1]+5)
     else:
         gallery_png_filepaths = []
         initial_content = build_welcome_section()
@@ -238,7 +233,6 @@ def serve_layout(selected_year=None, selected_day=None):
             ], style={'textAlign': 'center'})
         ])
     ])
-
     # 2. Define the Dashboard Modal Window
     dashboard_modal = html.Div(
         id="dashboard-modal",
@@ -360,7 +354,7 @@ def serve_layout(selected_year=None, selected_day=None):
                         min=0,
                         max=24,
                         step=1,
-                        value=[12, 24],
+                        value=[DEFALT_START_END_LT[0]+5, DEFALT_START_END_LT[1]+5],
                         updatemode='mouseup',
                         marks={i: str(i - 5 if i >= 5 else i + 19) if i!=0 else f'LT:{i+19}' for i in range(0, 25, 2)}
                     )
@@ -397,15 +391,15 @@ def serve_layout(selected_year=None, selected_day=None):
         # Header Area
         html.Div([
             html.H1(
-                f"Ionogram Inversion Result for {selected_year} Day {selected_day}"
+                f"Jicamarca VIPIR Ionogram Inversion Result for {selected_year} Day {selected_day}"
                 if (selected_year and selected_day)
-                else (f"Ionogram Inversion Result for {selected_year}" if selected_year else "VIPIR Ionogram Inversion Repository"),
+                else"Inversion Repository for Jicamarca VIPIR Ionograms",
                 style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#2c3e50', 'margin': '0 0 10px 30px'}
             ),
             html.P(
                 f"Total {len(gallery_png_filepaths)} images."
                 if (selected_year and selected_day)
-                else ("Please select a day above to view images." if selected_year else "Select a year and day from the top bar to view data, or explore the featured example below."),
+                else "Select a year and day from the top bar to view data, or explore the featured example below.",
                 id='gallery-count-text',
                 style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#7f8c8d', 'margin': '0 0 15px 30px'}
             ),
