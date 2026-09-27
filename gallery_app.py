@@ -81,9 +81,9 @@ def build_welcome_section():
                 'color': '#2c3e50', 'marginTop': '0', 'fontFamily': 'sans-serif', 'fontSize': '28px'
             }),
             html.P([
-                "Welcome to the VIPIR ionogram data portal where we present raw and inverted ionograms recorded at the Jicamarca Radio Observatoty."
+                "Welcome to the VIPIR ionogram data portal where we present raw and inverted ionograms recorded at the Jicamarca Radio Observatory. "
                 "Electron density profile inversions derived from Vertical Incidence Pulsed Ionospheric Radar (VIPIR) soundings are presented "
-                "and compared with complementary measurements obtained with the Jicamarca 50 MHz backscatter radar. "
+                "and compared with complementary measurements obtained with the Jicamarca 50 MHz incoherent scatter radar. "
             ], style={'fontSize': '16px', 'lineHeight': '1.6', 'color': '#4a5568', 'fontFamily': 'sans-serif'}),
 
             # Instructions Box
