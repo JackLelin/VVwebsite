@@ -391,7 +391,7 @@ def serve_layout(selected_year=None, selected_day=None):
         # Header Area
         html.Div([
             html.H1(
-                f"Jicamarca VIPIR Ionogram Inversion Result for {selected_year} Day {selected_day}"
+                f"Jicamarca VIPIR Ionogram Inversion Results for {selected_year} Day {selected_day}"
                 if (selected_year and selected_day)
                 else"Inversion Repository for Jicamarca VIPIR Ionograms",
                 style={'textAlign': 'left', 'fontFamily': 'sans-serif', 'color': '#2c3e50', 'margin': '0 0 10px 30px'}
