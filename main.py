@@ -68,4 +68,4 @@ def display_page(pathname, search):
 if __name__ == '__main__':
     # Still listen locally if you ever need to run it without Apache
     # debug=True is okay here since we are only using it locally
-    vipir_app.run(host='127.0.0.1', port=8050, debug=True)
+    vipir_app.run(host='127.0.0.1', port=8050, debug=False)

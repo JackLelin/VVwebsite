@@ -1,7 +1,7 @@
 import os
 import glob
 import json
-from dash import html, dcc, Input, Output, State, callback, ALL, ctx, no_update
+from dash import html, dcc, Input, Output, State, callback, clientside_callback, ALL, ctx, no_update
 
 # ==========================================
 # CONFIGURATION
@@ -22,55 +22,69 @@ def build_gallery_cards(year, day, start_hour, end_hour):
         if start_hour <= int(os.path.basename(fp)[13:15]) <= end_hour
     ]
 
-    # Build the image cards
-    gallery_image_cards = []
+    # Build the image cards as a raw static HTML string
+    raw_html = ""
     base_asset_prefix = BASE_URL.rstrip('/')
     for filepath in gallery_png_filepaths:
         filename = os.path.basename(filepath)
+        src = f"{base_asset_prefix}/assets/{year}/{day}/{TARGET_GALLERY_SUBDIR}/{filename}"
+        
+        # We use explicit width="1625" and height="585" on the raw img tag for perfect aspect ratio pre-calculation
+        raw_html += f'''
+        <div style="background-color: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); display: flex; flex-direction: column; align-items: center;">
+            <div style="width: 100%; aspect-ratio: 1625/585; cursor: zoom-in;" onclick="window.parent.postMessage({{type: 'open-dashboard', filename: '{filename}'}}, '*');">
+                <img src="{src}" loading="lazy" width="1625" height="585" style="width: 100%; height: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />
+            </div>
+            <div style="margin-top: 15px;">
+                <a href="{BASE_URL}dashboard?image={filename}&year={year}&day={day}" target="_blank" style="display: block; text-align: center; margin: 0; font-family: sans-serif; font-size: 14px; font-weight: bold; color: #444; word-break: break-all; text-decoration: none;">
+                    {filename}
+                </a>
+            </div>
+        </div>
+        '''
 
-        image_card_container = html.Div([
-            html.Div(
-                id={'type': 'gallery-image', 'index': filename},
-                n_clicks=0,
-                style={'cursor': 'zoom-in'},
-                children=[
-                    dcc.Markdown(
-                        f'<img src="{base_asset_prefix}/assets/{year}/{day}/{TARGET_GALLERY_SUBDIR}/{filename}" loading="lazy" style="width: 100%; height: auto; min-height: 350px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />',
-                        dangerously_allow_html=True
-                    )
-                ]
-            ),
-            html.Div([
-                html.A(
-                    filename,
-                    href=f"{BASE_URL}dashboard?image={filename}&year={year}&day={day}",
-                    target="_blank",
-                    style={
-                        'display': 'block',
-                        'textAlign': 'center',
-                        'margin': '0',
-                        'fontFamily': 'sans-serif',
-                        'fontSize': '14px',
-                        'fontWeight': 'bold',
-                        'color': '#444',
-                        'wordBreak': 'break-all',
-                        'textDecoration': 'none'
-                    }
-                )
-            ], style={'marginTop': '15px'})
-        ], style={
-            'backgroundColor': 'white',
-            'padding': '15px',
-            'borderRadius': '12px',
-            'boxShadow': '0 4px 20px rgba(0,0,0,0.05)',
-            'display': 'flex',
-            'flexDirection': 'column',
-            'alignItems': 'center',
-            'transition': 'transform 0.2s ease-in-out'
-        })
-        gallery_image_cards.append(image_card_container)
+    # Complete static HTML document
+    full_html_document = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ margin: 0; padding: 0; background-color: transparent; font-family: sans-serif; overflow: hidden; }}
+            .gallery-container {{ display: flex; flex-direction: column; gap: 40px; padding: 0 0 40px 0; max-width: 1600px; margin: 0 auto; }}
+        </style>
+        <script>
+            function sendHeight() {{
+                window.parent.postMessage({{
+                    type: 'resize-iframe',
+                    height: document.body.scrollHeight
+                }}, '*');
+            }}
+            window.onload = () => {{
+                sendHeight();
+                new ResizeObserver(sendHeight).observe(document.body);
+            }};
+        </script>
+    </head>
+    <body>
+        <div class="gallery-container">
+            {raw_html}
+        </div>
+    </body>
+    </html>
+    '''
 
-    return gallery_png_filepaths, gallery_image_cards
+    # Wrap the static HTML document in an Iframe
+    iframe_layout = html.Div(
+        html.Iframe(
+            id='static-gallery-iframe',
+            srcDoc=full_html_document,
+            style={'width': '100%', 'minHeight': '100vh', 'border': 'none', 'overflow': 'hidden'}
+        ),
+        style={'width': '100%', 'padding': '0'}
+    )
+
+    return gallery_png_filepaths, [iframe_layout]
 
 
 def build_welcome_section():
@@ -282,6 +296,10 @@ def serve_layout(selected_year=None, selected_day=None):
 
     # 3. Return the full layout
     out_layout = html.Div([
+        # Hidden input for iframe messages
+        dcc.Input(id='hidden-iframe-input', type='text', style={'display': 'none'}),
+        html.Div(id='listener-div', style={'display': 'none'}),
+
         dashboard_modal, # INJECT THE DASHBOARD MODAL
         caption_modal,   # INJECT THE MODAL INTO THE LAYOUT
 
@@ -415,25 +433,19 @@ def serve_layout(selected_year=None, selected_day=None):
             ])
         ], style={'padding': '30px 0', 'backgroundColor': '#fff', 'boxShadow': '0 2px 10px rgba(0,0,0,0.05)', 'marginBottom': '30px'}),
 
-        # Image Grid Container wrapped in dcc.Loading
-        dcc.Loading(
-            id='gallery-loading',
-            type='circle',
-            color='#27ae60',
-            show_initially=False,
-            overlay_style={'visibility': 'hidden', 'filter': 'blur(2px)'},
-            children=html.Div(
-                id='gallery-grid-container',
-                children=initial_content,
-                style={
-                    'display': 'flex',
-                    'flexDirection': 'column', # Stack images vertically
-                    'gap': '40px', # Generous spacing between the wide plots
-                    'padding': '0 30px 40px 30px',
-                    'maxWidth': '1600px', # Allow them to stretch wide
-                    'margin': '0 auto'
-                }
-            )
+        # Image Grid Container
+        html.Div(
+            id='gallery-grid-container',
+            key=f"gallery-{selected_year}-{selected_day}",
+            children=initial_content,
+            style={
+                'display': 'flex',
+                'flexDirection': 'column', # Stack images vertically
+                'gap': '40px', # Generous spacing between the wide plots
+                'padding': '0 30px 40px 30px',
+                'maxWidth': '1600px', # Allow them to stretch wide
+                'margin': '0 auto'
+            }
         )
     ], style={'backgroundColor': '#f8f9fa', 'minHeight': '100vh', 'margin': '-8px'}) # -8px margin removes default body margin
     return out_layout
@@ -507,14 +519,14 @@ def update_webpage_path(selected_day, selected_year):
 @callback(
     Output("dashboard-modal", "style"),
     Output("dashboard-iframe", "src"),
-    Input({'type': 'gallery-image', 'index': ALL}, 'n_clicks'),
+    Input("hidden-iframe-input", "value"),
     Input("close-dashboard-btn", "n_clicks"),
     State("dashboard-modal", "style"),
     State("year-select-dropdown", "value"),
     State("day-select-dropdown", "value"),
     prevent_initial_call=True
 )
-def toggle_dashboard_modal(n_clicks_list, close_clicks, current_style, selected_year, selected_day):
+def toggle_dashboard_modal(iframe_val, close_clicks, current_style, selected_year, selected_day):
     if not ctx.triggered:
         return no_update, no_update
 
@@ -526,12 +538,11 @@ def toggle_dashboard_modal(n_clicks_list, close_clicks, current_style, selected_
         current_style['display'] = 'none'
         return current_style, ""
 
-    if 'gallery-image' in trigger_id:
-        if not any(n_clicks_list):
+    if 'hidden-iframe-input' in trigger_id:
+        if not iframe_val:
             return no_update, no_update
 
-        trigger_dict = json.loads(trigger_id.rsplit('.', 1)[0])
-        filename = trigger_dict['index']
+        filename = iframe_val.split('|')[0]
 
         style = {
             'display': 'flex',
@@ -548,3 +559,33 @@ def toggle_dashboard_modal(n_clicks_list, close_clicks, current_style, selected_
         return style, f"{BASE_URL}dashboard?image={filename}&year={selected_year}&day={selected_day}"
 
     return no_update, no_update
+
+# CLIENTSIDE CALLBACK: Listen to postMessage from iframe
+clientside_callback(
+    """
+    function(dummy) {
+        if (!window.iframeListenerAdded) {
+            window.addEventListener('message', function(e) {
+                if (e.data && e.data.type === 'resize-iframe') {
+                    let iframe = document.getElementById('static-gallery-iframe');
+                    if (iframe) {
+                        iframe.style.height = e.data.height + 'px';
+                    }
+                }
+                if (e.data && e.data.type === 'open-dashboard') {
+                    let input = document.getElementById('hidden-iframe-input');
+                    if (input) {
+                        let setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                        setter.call(input, e.data.filename + "|" + Date.now());
+                        input.dispatchEvent(new Event('input', { bubbles: true}));
+                    }
+                }
+            });
+            window.iframeListenerAdded = true;
+        }
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output('listener-div', 'id'),
+    Input('listener-div', 'id')
+)

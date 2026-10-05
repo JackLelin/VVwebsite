@@ -79,18 +79,18 @@ def plot_inversion_result(fig, data, col_idx, legend_name):
         ),
         row=1, col=col_idx
     )
-    if 'vipir_inversion_fps' in data:
-        fps = data['vipir_inversion_fps']
-        Z = data['vipir_inversion_z_hts']
-        x_vals = data['vipir_inversion_all_xvals'][-1]
-        z = data['vipir_inversion_z_node']
-        fvsO = data['vipir_inversion_fvsO']
-        vhsO = data['vipir_inversion_vhsO']
-        fvsX = data['vipir_inversion_fvsX']
-        vhsX = data['vipir_inversion_vhsX']
+    if 'inversion_fps' in data:
+        fps = data['inversion_fps']
+        Z = data['inversion_z']
+        # x_vals = data['vipir_inversion_all_xvals'][-1]
+        z = data['inversion_z_nodes']
+        fvsO = data['inversion_fvsO']
+        vhsO = data['inversion_vhsO']
+        fvsX = data['inversion_fvsX']
+        vhsX = data['inversion_vhsX']
     
         fig.add_trace(go.Scattergl(x=fps, y=Z, mode='lines', line=dict(color='darkgreen'), name='fp profile', legend=legend_name), row=1, col=col_idx)
-        fig.add_trace(go.Scattergl(x=x_vals, y=z, mode='markers', marker=dict(color='green', size=6), name='fp spline node', legend=legend_name), row=1, col=col_idx)
+        # fig.add_trace(go.Scattergl(x=x_vals, y=z, mode='markers', marker=dict(color='green', size=6), name='fp spline node', legend=legend_name), row=1, col=col_idx)
         fig.add_trace(go.Scattergl(x=fvsO, y=vhsO, mode='lines', line=dict(color='red'), name='O-trace hv', legend=legend_name), row=1, col=col_idx)
         fig.add_trace(go.Scattergl(x=fvsX, y=vhsX, mode='lines', line=dict(color='blue'), name='X-trace hv', legend=legend_name), row=1, col=col_idx)
 
